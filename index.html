@@ -19,68 +19,96 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Google Fonts (Inter) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800;900&display=swap" rel="stylesheet">
 
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0B0E14; /* Ciemne tło */
-            margin: 0;
-            overflow-x: hidden;
-            /* Ukrywamy systemowy kursor na PC, żeby użyć własnego */
-            cursor: none; 
+        :root {
+            --bg-dark: #07090d;
+            --twitch: #9146FF;
+            --kick: #53FC18;
+            --youtube: #FF0000;
+            --tiktok: #00f2fe;
+            --instagram: #E1306C;
+            --discord: #5865F2;
         }
 
-        /* Na urządzeniach dotykowych przywracamy normalny kursor */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            margin: 0;
+            overflow-x: hidden;
+            cursor: none; /* Ukrywamy systemowy kursor */
+            -webkit-tap-highlight-color: transparent; /* Usuwa niebieski kwadrat przy kliknięciu na telefonie */
+        }
+
         @media (hover: none) and (pointer: coarse) {
             body { cursor: auto; }
-            #custom-cursor { display: none !important; }
+            #cursor-dot, #cursor-outline { display: none !important; }
         }
 
         /* Pasek przewijania */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0B0E14; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #9146FF; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--twitch); }
 
-        /* Szum na ekranie (Noise) */
+        /* Szum na ekranie (Noise) - Zoptymalizowany */
         .noise-overlay {
             position: fixed;
             inset: 0;
             pointer-events: none;
             z-index: 1;
-            opacity: 0.03;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
         }
 
-        /* Własny Kursor */
-        #custom-cursor {
+        /* Własny Kursor (2-częściowy dla płynności) */
+        #cursor-dot, #cursor-outline {
             position: fixed;
             top: 0;
             left: 0;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #9146FF;
-            border-radius: 50%;
             transform: translate(-50%, -50%);
-            pointer-events: none;
+            border-radius: 50%;
             z-index: 99999;
-            transition: width 0.2s, height 0.2s, background-color 0.2s, border-color 0.2s;
-            box-shadow: 0 0 15px rgba(145, 70, 255, 0.5);
+            pointer-events: none;
         }
-        #custom-cursor.hovering {
-            width: 40px;
-            height: 40px;
-            background-color: rgba(145, 70, 255, 0.2);
-            border-color: #53FC18;
-            box-shadow: 0 0 20px rgba(83, 252, 24, 0.5);
+
+        #cursor-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--kick);
+            box-shadow: 0 0 10px var(--kick);
+        }
+
+        #cursor-outline {
+            width: 30px;
+            height: 30px;
+            border: 2px solid var(--twitch);
+            box-shadow: 0 0 15px rgba(145, 70, 255, 0.3);
+            transition: width 0.2s ease-out, height 0.2s ease-out, background-color 0.2s ease-out, border-color 0.2s ease-out;
+        }
+
+        /* Stan najechania (Hover) */
+        #cursor-outline.hovering {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(145, 70, 255, 0.1);
+            border-color: var(--kick);
+            box-shadow: 0 0 20px rgba(83, 252, 24, 0.3);
+            backdrop-filter: blur(2px);
+        }
+
+        /* Kliknięcie */
+        #cursor-outline.clicking {
+            transform: translate(-50%, -50%) scale(0.8);
         }
 
         /* Obracająca się ramka wokół awatara */
         .spin-border-wrapper {
             position: relative;
             border-radius: 50%;
-            padding: 4px;
+            padding: 3px;
             background: linear-gradient(0deg, transparent, transparent);
             overflow: hidden;
             z-index: 10;
@@ -89,41 +117,75 @@
             content: '';
             position: absolute;
             top: -50%; left: -50%; width: 200%; height: 200%;
-            background: conic-gradient(from 0deg, transparent 0%, transparent 30%, #9146FF 50%, #53FC18 70%, transparent 100%);
-            animation: spin 3s linear infinite;
+            background: conic-gradient(from 0deg, transparent 0%, transparent 35%, var(--twitch) 50%, var(--kick) 65%, transparent 100%);
+            animation: spin 4s linear infinite;
             z-index: -1;
         }
         .spin-border-inner {
-            background-color: #0B0E14;
+            background-color: var(--bg-dark);
             border-radius: 50%;
             padding: 4px;
             z-index: 1;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* Karty Linków - Efekt Glassmorphism */
+        /* Karty Linków - Efekt Glassmorphism + 3D Tilt */
+        .card-container {
+            perspective: 1000px;
+        }
+        
         .glass-card {
-            background: rgba(20, 25, 35, 0.6);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: rgba(15, 20, 28, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             position: relative;
-            z-index: 20; /* Ważne żeby były klikalne nad canvasem */
+            z-index: 20;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out, border-color 0.3s ease, box-shadow 0.3s ease;
         }
-        .glass-card:hover {
-            transform: translateY(-5px) scale(1.02);
+        
+        /* Opadanie z opóźnieniem powrotu po zjechaniu myszką */
+        .glass-card.reset-tilt {
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* Specjalne podświetlenia po najechaniu na poszczególne platformy */
-        .hover-yt:hover { border-color: #FF0000; box-shadow: 0 10px 30px rgba(255, 0, 0, 0.2); }
-        .hover-twitch:hover { border-color: #9146FF; box-shadow: 0 10px 30px rgba(145, 70, 255, 0.2); }
-        .hover-kick:hover { border-color: #53FC18; box-shadow: 0 10px 30px rgba(83, 252, 24, 0.2); }
-        .hover-tiktok:hover { border-color: #00f2fe; box-shadow: 0 10px 30px rgba(0, 242, 254, 0.2); }
-        .hover-ig:hover { border-color: #E1306C; box-shadow: 0 10px 30px rgba(225, 48, 108, 0.2); }
-        .hover-discord:hover { border-color: #5865F2; box-shadow: 0 10px 30px rgba(88, 101, 242, 0.2); }
+        /* Błysk na kartach (Shine Effect) - lepsze przycięcie */
+        .glass-card-inner {
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 30;
+        }
+        .glass-card-inner::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            animation: shine 7s infinite;
+        }
+        @keyframes shine {
+            0% { left: -150%; }
+            15% { left: 200%; }
+            100% { left: 200%; }
+        }
 
-        /* Cząsteczki w tle - muszą być z tyłu i nie blokować kliknięć */
+        /* Specjalne podświetlenia */
+        .hover-yt:hover { border-color: var(--youtube); box-shadow: 0 10px 40px rgba(255, 0, 0, 0.15); }
+        .hover-twitch:hover { border-color: var(--twitch); box-shadow: 0 10px 40px rgba(145, 70, 255, 0.15); }
+        .hover-kick:hover { border-color: var(--kick); box-shadow: 0 10px 40px rgba(83, 252, 24, 0.1); }
+        .hover-tiktok:hover { border-color: var(--tiktok); box-shadow: 0 10px 40px rgba(0, 242, 254, 0.15); }
+        .hover-ig:hover { border-color: var(--instagram); box-shadow: 0 10px 40px rgba(225, 48, 108, 0.15); }
+        .hover-discord:hover { border-color: var(--discord); box-shadow: 0 10px 40px rgba(88, 101, 242, 0.15); }
+
+        /* Cząsteczki w tle */
         #particles-canvas {
             position: fixed;
             top: 0;
@@ -144,57 +206,34 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(83, 252, 24, 0.3);
             color: white;
-            padding: 12px 24px;
+            padding: 14px 28px;
             border-radius: 50px;
             font-size: 14px;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             z-index: 99999;
-            transition: bottom 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: bottom 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
             pointer-events: none;
         }
-        .toast.show { bottom: 30px; }
+        .toast.show { bottom: 40px; }
 
         /* Animowane Tło (Mesh Gradient) */
         .bg-mesh {
             position: fixed;
             inset: 0;
             z-index: 0;
-            background: radial-gradient(at 20% 30%, rgba(145, 70, 255, 0.15) 0px, transparent 50vw),
-                        radial-gradient(at 80% 80%, rgba(83, 252, 24, 0.1) 0px, transparent 50vw),
-                        radial-gradient(at 80% 20%, rgba(255, 0, 0, 0.1) 0px, transparent 50vw);
-            animation: meshPulse 10s ease-in-out infinite alternate;
+            background: radial-gradient(at 20% 30%, rgba(145, 70, 255, 0.12) 0px, transparent 50vw),
+                        radial-gradient(at 80% 80%, rgba(83, 252, 24, 0.08) 0px, transparent 50vw),
+                        radial-gradient(at 90% 10%, rgba(0, 242, 254, 0.05) 0px, transparent 50vw);
+            animation: meshPulse 12s ease-in-out infinite alternate;
             pointer-events: none;
         }
         @keyframes meshPulse {
-            0% { opacity: 0.5; transform: scale(1); }
-            100% { opacity: 1; transform: scale(1.1); }
-        }
-
-        /* Błysk na kartach (Shine Effect) */
-        .glass-card {
-            overflow: hidden; /* Wymagane do przycięcia błysku */
-        }
-        .glass-card::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -150%;
-            width: 50%;
-            height: 100%;
-            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
-            transform: skewX(-25deg);
-            animation: shine 6s infinite;
-            z-index: 30;
-            pointer-events: none;
-        }
-        @keyframes shine {
-            0% { left: -150%; }
-            20% { left: 200%; }
-            100% { left: 200%; }
+            0% { opacity: 0.6; transform: scale(1) translate(0, 0); }
+            100% { opacity: 1; transform: scale(1.05) translate(-2%, 2%); }
         }
 
         /* Pulsowanie LIVE */
@@ -203,15 +242,15 @@
         }
         @keyframes livePulse {
             0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        /* Animacje wejścia */
+        /* Płynne Animacje Wejścia */
         .fade-in-up {
             opacity: 0;
-            transform: translateY(20px);
-            animation: fadeInUp 0.6s ease forwards;
+            transform: translateY(30px);
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         @keyframes fadeInUp {
             to { opacity: 1; transform: translateY(0); }
@@ -224,6 +263,26 @@
         .delay-6 { animation-delay: 0.6s; }
         .delay-7 { animation-delay: 0.7s; }
 
+        /* Ulepszenie przycisku udostępniania */
+        .share-btn-glow {
+            box-shadow: 0 0 20px rgba(255,255,255,0.05);
+        }
+        .share-btn-glow:hover {
+            box-shadow: 0 0 25px rgba(255,255,255,0.2);
+        }
+
+        /* Magnetyczne elementy */
+        .magnetic-wrap {
+            display: inline-block;
+        }
+        .magnetic {
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            will-change: transform;
+        }
+        .magnetic.magnetizing {
+            transition: none; /* Wyłącza przejście podczas śledzenia kursora */
+        }
+
     </style>
 </head>
 <body class="text-white min-h-screen flex flex-col relative">
@@ -232,175 +291,201 @@
     <canvas id="particles-canvas"></canvas>
     <div class="bg-mesh"></div>
     <div class="noise-overlay"></div>
-    <div id="custom-cursor"></div>
+    
+    <!-- Elementy Kursora -->
+    <div id="cursor-dot"></div>
+    <div id="cursor-outline"></div>
 
-    <!-- Przycisk Udostępniania (Prawy górny róg) -->
-    <button onclick="shareProfile()" class="absolute top-6 right-6 z-50 bg-white/5 hover:bg-white/10 backdrop-blur-md p-3 rounded-full border border-white/10 transition-all hover:scale-110 group cursor-pointer">
-        <i class="fa-solid fa-share-nodes text-gray-300 group-hover:text-white"></i>
-    </button>
+    <!-- Przycisk Udostępniania -->
+    <div class="absolute top-4 right-4 md:top-6 md:right-6 z-50 magnetic-wrap">
+        <button onclick="shareProfile()" aria-label="Udostępnij profil" class="magnetic bg-white/5 hover:bg-white/15 backdrop-blur-md p-3 md:p-3.5 rounded-full border border-white/10 transition-colors duration-300 group cursor-pointer share-btn-glow">
+            <i class="fa-solid fa-share-nodes text-gray-400 group-hover:text-white transition-colors pointer-events-none"></i>
+        </button>
+    </div>
 
-    <!-- Główny Kontener (musi mieć wyższy z-index niż canvas) -->
-    <main class="relative z-10 w-full max-w-xl mx-auto flex flex-col items-center py-12 px-5">
+    <!-- Główny Kontener (w pełni responsywny) -->
+    <main class="relative z-10 w-full max-w-[95%] sm:max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto flex flex-col items-center py-10 md:py-14 px-2 sm:px-5">
         
         <!-- Sekcja Profilu -->
-        <header class="flex flex-col items-center mb-8 fade-in-up">
+        <header class="flex flex-col items-center mb-8 md:mb-12 fade-in-up">
             
-            <!-- Awatar z wgrywaniem i animowaną ramką -->
-            <div class="spin-border-wrapper mb-4 group cursor-pointer shadow-[0_0_40px_rgba(145,70,255,0.3)]" onclick="document.getElementById('avatar-upload').click()" title="Zmień zdjęcie">
-                <div class="spin-border-inner relative">
-                    <img 
-                        id="profile-img"
-                        src="https://placehold.co/200x200/1f2937/ffffff?text=Z" 
-                        alt="Zawlox" 
-                        class="w-28 h-28 object-cover rounded-full transition-all duration-300 group-hover:brightness-50"
-                    >
-                </div>
-                <!-- Status LIVE -->
-                <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 z-30 bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-[#0B0E14] live-badge tracking-widest pointer-events-none shadow-lg">
-                    LIVE
-                </div>
-                <!-- Ikonka aparatu po najechaniu -->
-                <div class="absolute inset-0 z-20 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full pointer-events-none">
-                    <i class="fa-solid fa-camera text-white text-2xl drop-shadow-md"></i>
+            <!-- Awatar -->
+            <div class="magnetic-wrap">
+                <div class="spin-border-wrapper mb-2 magnetic shadow-[0_0_50px_rgba(145,70,255,0.2)]">
+                    <div class="spin-border-inner relative">
+                        <img 
+                            id="profile-img"
+                            src="https://decapi.me/twitch/avatar/zawlox" 
+                            alt="Zawlox Avatar" 
+                            class="w-[90px] h-[90px] md:w-[110px] md:h-[110px] object-cover rounded-full transition-transform duration-300 hover:scale-105"
+                        >
+                    </div>
+                    <!-- Status LIVE -->
+                    <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 z-30 bg-red-600 text-white text-[9px] md:text-[10px] font-black px-2 md:px-3 py-1 rounded-full border-2 border-black live-badge tracking-widest pointer-events-none">
+                        LIVE
+                    </div>
                 </div>
             </div>
             
-            <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="loadAvatar(event)">
-            
-            <h1 class="text-3xl font-extrabold tracking-wider mb-1 mt-2 drop-shadow-lg flex items-center gap-2">
-                Zawlox 
-                <i class="fa-solid fa-circle-check text-blue-400 text-xl" title="Zweryfikowany Twórca"></i>
-            </h1>
-            <p class="text-gray-400 font-medium tracking-wide mb-4">Twórca Wideo & Streamer</p>
+            <!-- Dynamiczne Powitanie -->
+            <p id="dynamic-greeting" class="text-[#53FC18] text-[10px] font-bold tracking-widest uppercase mt-3 mb-0 opacity-80"></p>
 
-            <!-- Plakietki (Tagi) -->
-            <div class="flex gap-3 justify-center">
-                <span class="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 shadow-sm flex items-center gap-1 hover:bg-white/10 transition-colors cursor-default"><i class="fa-solid fa-gamepad text-[#9146FF]"></i> Gamer</span>
-                <span class="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 shadow-sm flex items-center gap-1 hover:bg-white/10 transition-colors cursor-default"><i class="fa-solid fa-video text-red-500"></i> Vlogger</span>
+            <h1 class="text-2xl md:text-3xl font-black tracking-wide mb-1 mt-1 drop-shadow-lg flex items-center gap-2">
+                Zawlox 
+                <i class="fa-solid fa-circle-check text-blue-500 text-[18px] md:text-[20px]" title="Zweryfikowany Twórca"></i>
+            </h1>
+            <p class="text-gray-400 font-medium tracking-wide mb-4 md:mb-5 text-xs md:text-sm uppercase letter-spacing-2">Twórca Wideo & Streamer</p>
+
+            <!-- Plakietki -->
+            <div class="flex gap-2 md:gap-3 justify-center flex-wrap">
+                <span class="px-3 md:px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[11px] md:text-xs font-semibold text-gray-300 shadow-sm flex items-center gap-1.5 hover:bg-white/10 transition-colors cursor-default backdrop-blur-sm">
+                    <i class="fa-solid fa-gamepad text-[#9146FF]"></i> Gamer
+                </span>
+                <span class="px-3 md:px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[11px] md:text-xs font-semibold text-gray-300 shadow-sm flex items-center gap-1.5 hover:bg-white/10 transition-colors cursor-default backdrop-blur-sm">
+                    <i class="fa-solid fa-video text-red-500"></i> Vlogger
+                </span>
             </div>
         </header>
 
-        <!-- Lista Linków / Kart -->
-        <div class="w-full flex flex-col gap-4">
+        <!-- Lista Linków (Responsywny Grid) -->
+        <div class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-10">
 
             <!-- Twitch -->
-            <a href="https://www.twitch.tv/zawlox" target="_blank" rel="noopener noreferrer" class="fade-in-up delay-1 glass-card hover-twitch rounded-2xl overflow-hidden flex flex-col cursor-pointer group">
-                <div class="h-24 w-full bg-gradient-to-r from-purple-950 to-[#9146FF]/50 relative overflow-hidden flex items-center justify-center">
-                    <i class="fa-brands fa-twitch text-7xl text-white/10 absolute -right-2 -bottom-2 transform -rotate-12 group-hover:scale-110 transition-transform duration-500"></i>
-                    <div class="z-10 bg-red-600 text-white px-3 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-2 group-hover:scale-105 transition-transform">
-                        <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div> NA ŻYWO
+            <div class="card-container fade-in-up delay-1">
+                <a href="https://www.twitch.tv/zawlox" target="_blank" rel="noopener noreferrer" aria-label="Odwiedź mój Twitch" class="glass-card hover-twitch rounded-2xl flex flex-col cursor-pointer group h-full">
+                    <div class="glass-card-inner"></div>
+                    <div class="h-[90px] w-full bg-gradient-to-r from-[#201040] to-[#9146FF]/40 relative overflow-hidden flex items-center justify-center rounded-t-2xl border-b border-white/5">
+                        <i class="fa-brands fa-twitch text-[80px] text-white/5 absolute -right-2 -bottom-4 transform -rotate-12 group-hover:scale-125 transition-transform duration-700"></i>
+                        <div class="z-10 bg-red-600 text-white px-4 py-1.5 rounded-md text-[11px] font-black shadow-lg flex items-center gap-2 group-hover:scale-110 transition-transform duration-300">
+                            <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div> NA ŻYWO
+                        </div>
                     </div>
-                </div>
-                <div class="p-4 flex items-center gap-4 bg-black/40">
-                    <div class="bg-[#9146FF] w-12 h-12 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
-                        <i class="fa-brands fa-twitch text-2xl text-white"></i>
+                    <div class="p-4 flex items-center gap-4 bg-transparent rounded-b-2xl flex-1">
+                        <div class="bg-[#9146FF] w-12 h-12 shrink-0 rounded-xl flex items-center justify-center shadow-[0_4px_15px_rgba(145,70,255,0.4)] group-hover:-translate-y-1 transition-transform duration-300">
+                            <i class="fa-brands fa-twitch text-2xl text-white"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-bold text-[17px] text-white truncate">Twitch.tv</h2>
+                            <p class="text-[13px] text-gray-400 font-medium truncate">Główne transmisje i gry</p>
+                        </div>
+                        <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#9146FF] group-hover:translate-x-1 transition-all duration-300 shrink-0"></i>
                     </div>
-                    <div class="flex-1">
-                        <h2 class="font-bold text-lg text-white">Twitch.tv</h2>
-                        <p class="text-sm text-gray-400">Główne transmisje i gry</p>
-                    </div>
-                    <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#9146FF] transition-colors"></i>
-                </div>
-            </a>
+                </a>
+            </div>
 
             <!-- Kick -->
-            <a href="https://kick.com/zawlox" target="_blank" rel="noopener noreferrer" class="fade-in-up delay-2 glass-card hover-kick rounded-2xl overflow-hidden flex flex-col cursor-pointer group">
-                <div class="h-24 w-full bg-gradient-to-r from-green-950 to-[#53FC18]/30 relative overflow-hidden flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" fill="currentColor" class="w-28 h-28 text-white/10 absolute -right-2 -bottom-4 transform -rotate-12 group-hover:scale-110 transition-transform duration-500"><path d="M4 4h5v4h3v-2h2v-2h6v4h-2v2h-2v4h2v2h2v4h-6v-2h-2v-2h-3v4h-5z"/></svg>
-                    <div class="z-10 bg-[#53FC18] text-black px-3 py-1 rounded text-xs font-bold shadow-lg flex items-center gap-2 group-hover:scale-105 transition-transform">
-                        <div class="w-2 h-2 bg-black rounded-full animate-pulse"></div> STREAM
+            <div class="card-container fade-in-up delay-2">
+                <a href="https://kick.com/zawlox" target="_blank" rel="noopener noreferrer" aria-label="Odwiedź mój Kick" class="glass-card hover-kick rounded-2xl flex flex-col cursor-pointer group h-full">
+                    <div class="glass-card-inner"></div>
+                    <div class="h-[90px] w-full bg-gradient-to-r from-[#0a1f0a] to-[#53FC18]/20 relative overflow-hidden flex items-center justify-center rounded-t-2xl border-b border-white/5">
+                        <svg viewBox="0 0 24 24" fill="currentColor" class="w-32 h-32 text-white/5 absolute -right-4 -bottom-6 transform -rotate-12 group-hover:scale-125 transition-transform duration-700"><path d="M4 4h5v4h3v-2h2v-2h6v4h-2v2h-2v4h2v2h2v4h-6v-2h-2v-2h-3v4h-5z"/></svg>
+                        <div class="z-10 bg-[#53FC18] text-black px-4 py-1.5 rounded-md text-[11px] font-black shadow-lg flex items-center gap-2 group-hover:scale-110 transition-transform duration-300">
+                            <div class="w-2 h-2 bg-black rounded-full animate-pulse"></div> STREAM
+                        </div>
                     </div>
-                </div>
-                <div class="p-4 flex items-center gap-4 bg-black/40">
-                    <div class="bg-[#53FC18] w-12 h-12 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
-                        <svg viewBox="0 0 24 24" fill="#000000" class="w-7 h-7"><path d="M4 4h5v4h3v-2h2v-2h6v4h-2v2h-2v4h2v2h2v4h-6v-2h-2v-2h-3v4h-5z"/></svg>
+                    <div class="p-4 flex items-center gap-4 bg-transparent rounded-b-2xl flex-1">
+                        <div class="bg-[#53FC18] w-12 h-12 shrink-0 rounded-xl flex items-center justify-center shadow-[0_4px_15px_rgba(83,252,24,0.3)] group-hover:-translate-y-1 transition-transform duration-300">
+                            <svg viewBox="0 0 24 24" fill="#000000" class="w-7 h-7"><path d="M4 4h5v4h3v-2h2v-2h6v4h-2v2h-2v4h2v2h2v4h-6v-2h-2v-2h-3v4h-5z"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-bold text-[17px] text-white truncate">Kick.com</h2>
+                            <p class="text-[13px] text-gray-400 font-medium truncate">Dodatkowe streamy i IRL</p>
+                        </div>
+                        <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#53FC18] group-hover:translate-x-1 transition-all duration-300 shrink-0"></i>
                     </div>
-                    <div class="flex-1">
-                        <h2 class="font-bold text-lg text-white">Kick.com</h2>
-                        <p class="text-sm text-gray-400">Dodatkowe streamy i IRL</p>
-                    </div>
-                    <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#53FC18] transition-colors"></i>
-                </div>
-            </a>
+                </a>
+            </div>
 
             <!-- YouTube -->
-            <a href="https://www.youtube.com/@zawlox/videos" target="_blank" rel="noopener noreferrer" class="fade-in-up delay-3 glass-card hover-yt rounded-2xl overflow-hidden flex flex-col cursor-pointer group">
-                <div class="h-24 w-full bg-gradient-to-r from-red-950 to-red-600/40 relative overflow-hidden flex items-center justify-center">
-                    <i class="fa-brands fa-youtube text-7xl text-white/10 absolute -right-2 -bottom-2 transform -rotate-12 group-hover:scale-110 transition-transform duration-500"></i>
-                    <div class="z-10 bg-black/60 backdrop-blur-md border border-white/10 text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-2 group-hover:scale-105 transition-transform">
-                        <i class="fa-solid fa-play text-red-500"></i> NAJNOWSZE WIDEO
+            <div class="card-container fade-in-up delay-3">
+                <a href="https://www.youtube.com/@zawlox/videos" target="_blank" rel="noopener noreferrer" aria-label="Odwiedź mój YouTube" class="glass-card hover-yt rounded-2xl flex flex-col cursor-pointer group h-full">
+                    <div class="glass-card-inner"></div>
+                    <div class="h-[90px] w-full bg-gradient-to-r from-[#2a0505] to-[#FF0000]/30 relative overflow-hidden flex items-center justify-center rounded-t-2xl border-b border-white/5">
+                        <i class="fa-brands fa-youtube text-[90px] text-white/5 absolute -right-2 -bottom-4 transform -rotate-12 group-hover:scale-125 transition-transform duration-700"></i>
+                        <div class="z-10 bg-black/60 backdrop-blur-md border border-white/10 text-white px-4 py-1.5 rounded-md text-[11px] font-black flex items-center gap-2 group-hover:scale-110 transition-transform duration-300">
+                            <i class="fa-solid fa-play text-red-500"></i> NAJNOWSZE WIDEO
+                        </div>
                     </div>
-                </div>
-                <div class="p-4 flex items-center gap-4 bg-black/40">
-                    <div class="bg-[#FF0000] w-12 h-12 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
-                        <i class="fa-brands fa-youtube text-2xl text-white"></i>
+                    <div class="p-4 flex items-center gap-4 bg-transparent rounded-b-2xl flex-1">
+                        <div class="bg-[#FF0000] w-12 h-12 shrink-0 rounded-xl flex items-center justify-center shadow-[0_4px_15px_rgba(255,0,0,0.3)] group-hover:-translate-y-1 transition-transform duration-300">
+                            <i class="fa-brands fa-youtube text-2xl text-white"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-bold text-[17px] text-white truncate">YouTube</h2>
+                            <p class="text-[13px] text-gray-400 font-medium truncate">Vlogi, gameplaye i shoty</p>
+                        </div>
+                        <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#FF0000] group-hover:translate-x-1 transition-all duration-300 shrink-0"></i>
                     </div>
-                    <div class="flex-1">
-                        <h2 class="font-bold text-lg text-white">YouTube</h2>
-                        <p class="text-sm text-gray-400">Vlogi, gameplaye i shoty</p>
-                    </div>
-                    <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#FF0000] transition-colors"></i>
-                </div>
-            </a>
+                </a>
+            </div>
 
             <!-- TikTok -->
-            <a href="https://www.tiktok.com/@zawlox" target="_blank" rel="noopener noreferrer" class="fade-in-up delay-4 glass-card hover-tiktok rounded-2xl overflow-hidden flex flex-col cursor-pointer group">
-                <div class="h-24 w-full bg-gradient-to-r from-gray-900 to-[#00f2fe]/20 relative overflow-hidden flex items-center justify-center">
-                    <i class="fa-brands fa-tiktok text-7xl text-white/10 absolute -right-2 -bottom-2 transform -rotate-12 group-hover:scale-110 transition-transform duration-500"></i>
-                </div>
-                <div class="p-4 flex items-center gap-4 bg-black/40">
-                    <div class="bg-black border border-gray-700 w-12 h-12 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
-                        <i class="fa-brands fa-tiktok text-2xl text-white drop-shadow-[2px_2px_0px_#ff0050] drop-shadow-[-2px_-2px_0px_#00f2fe]"></i>
+            <div class="card-container fade-in-up delay-4">
+                <a href="https://www.tiktok.com/@zawlox" target="_blank" rel="noopener noreferrer" aria-label="Odwiedź mój TikTok" class="glass-card hover-tiktok rounded-2xl flex flex-col cursor-pointer group h-full">
+                    <div class="glass-card-inner"></div>
+                    <div class="h-[90px] w-full bg-gradient-to-r from-gray-900 to-[#00f2fe]/20 relative overflow-hidden flex items-center justify-center rounded-t-2xl border-b border-white/5">
+                        <i class="fa-brands fa-tiktok text-[80px] text-white/5 absolute -right-2 -bottom-2 transform -rotate-12 group-hover:scale-125 transition-transform duration-700"></i>
                     </div>
-                    <div class="flex-1">
-                        <h2 class="font-bold text-lg text-white">TikTok</h2>
-                        <p class="text-sm text-gray-400">Śmieszne momenty i klipy</p>
+                    <div class="p-4 flex items-center gap-4 bg-transparent rounded-b-2xl flex-1">
+                        <div class="bg-black border border-gray-700 w-12 h-12 shrink-0 rounded-xl flex items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.5)] group-hover:-translate-y-1 transition-transform duration-300">
+                            <i class="fa-brands fa-tiktok text-2xl text-white drop-shadow-[1px_1px_0px_#ff0050] drop-shadow-[-1px_-1px_0px_#00f2fe]"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-bold text-[17px] text-white truncate">TikTok</h2>
+                            <p class="text-[13px] text-gray-400 font-medium truncate">Śmieszne momenty i klipy</p>
+                        </div>
+                        <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#00f2fe] group-hover:translate-x-1 transition-all duration-300 shrink-0"></i>
                     </div>
-                    <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-white transition-colors"></i>
-                </div>
-            </a>
+                </a>
+            </div>
 
             <!-- Instagram -->
-            <a href="https://www.instagram.com/_adas_adas_/" target="_blank" rel="noopener noreferrer" class="fade-in-up delay-5 glass-card hover-ig rounded-2xl overflow-hidden flex flex-col cursor-pointer group">
-                <div class="h-24 w-full bg-gradient-to-r from-[#f09433] via-[#e6683c] to-[#bc1888] opacity-80 relative overflow-hidden flex items-center justify-center">
-                    <i class="fa-brands fa-instagram text-7xl text-white/20 absolute -right-2 -bottom-2 transform -rotate-12 group-hover:scale-110 transition-transform duration-500"></i>
-                </div>
-                <div class="p-4 flex items-center gap-4 bg-black/40">
-                    <div class="bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] w-12 h-12 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
-                        <i class="fa-brands fa-instagram text-2xl text-white"></i>
+            <div class="card-container fade-in-up delay-5">
+                <a href="https://www.instagram.com/_adas_adas_/" target="_blank" rel="noopener noreferrer" aria-label="Odwiedź mój Instagram" class="glass-card hover-ig rounded-2xl flex flex-col cursor-pointer group h-full">
+                    <div class="glass-card-inner"></div>
+                    <div class="h-[90px] w-full bg-gradient-to-r from-[#f09433] via-[#e6683c] to-[#bc1888] opacity-[0.85] relative overflow-hidden flex items-center justify-center rounded-t-2xl border-b border-white/10">
+                        <i class="fa-brands fa-instagram text-[80px] text-white/20 absolute -right-2 -bottom-2 transform -rotate-12 group-hover:scale-125 transition-transform duration-700"></i>
                     </div>
-                    <div class="flex-1">
-                        <h2 class="font-bold text-lg text-white">Instagram</h2>
-                        <p class="text-sm text-gray-400">Życie prywatne i zdjęcia</p>
+                    <div class="p-4 flex items-center gap-4 bg-transparent rounded-b-2xl flex-1">
+                        <div class="bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] w-12 h-12 shrink-0 rounded-xl flex items-center justify-center shadow-[0_4px_15px_rgba(225,48,108,0.3)] group-hover:-translate-y-1 transition-transform duration-300">
+                            <i class="fa-brands fa-instagram text-2xl text-white"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-bold text-[17px] text-white truncate">Instagram</h2>
+                            <p class="text-[13px] text-gray-400 font-medium truncate">Życie prywatne i zdjęcia</p>
+                        </div>
+                        <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#E1306C] group-hover:translate-x-1 transition-all duration-300 shrink-0"></i>
                     </div>
-                    <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#E1306C] transition-colors"></i>
-                </div>
-            </a>
+                </a>
+            </div>
 
             <!-- Discord -->
-            <a href="https://discord.gg/GgkJnQAcsa" target="_blank" rel="noopener noreferrer" class="fade-in-up delay-6 glass-card hover-discord rounded-2xl overflow-hidden flex flex-col cursor-pointer group">
-                <div class="h-24 w-full bg-[#5865F2]/20 relative overflow-hidden flex items-center justify-center border-b border-[#5865F2]/30">
-                    <i class="fa-brands fa-discord text-7xl text-[#5865F2]/20 absolute -right-2 -bottom-2 transform -rotate-12 group-hover:scale-110 transition-transform duration-500"></i>
-                    <div class="z-10 bg-[#5865F2] text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-2 group-hover:scale-105 transition-transform shadow-[0_0_15px_rgba(88,101,242,0.5)]">
-                        Dołącz do społeczności
+            <div class="card-container fade-in-up delay-6">
+                <a href="https://discord.gg/GgkJnQAcsa" target="_blank" rel="noopener noreferrer" aria-label="Dołącz do serwera Discord" class="glass-card hover-discord rounded-2xl flex flex-col cursor-pointer group h-full">
+                    <div class="glass-card-inner"></div>
+                    <div class="h-[90px] w-full bg-gradient-to-r from-[#171a33] to-[#5865F2]/30 relative overflow-hidden flex items-center justify-center rounded-t-2xl border-b border-[#5865F2]/20">
+                        <i class="fa-brands fa-discord text-[80px] text-[#5865F2]/20 absolute -right-2 -bottom-2 transform -rotate-12 group-hover:scale-125 transition-transform duration-700"></i>
+                        <div class="z-10 bg-[#5865F2] text-white px-4 py-1.5 rounded-md text-[11px] font-black flex items-center gap-2 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(88,101,242,0.4)]">
+                            DOŁĄCZ DO SPOŁECZNOŚCI
+                        </div>
                     </div>
-                </div>
-                <div class="p-4 flex items-center gap-4 bg-black/40">
-                    <div class="bg-[#5865F2] w-12 h-12 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
-                        <i class="fa-brands fa-discord text-2xl text-white"></i>
+                    <div class="p-4 flex items-center gap-4 bg-transparent rounded-b-2xl flex-1">
+                        <div class="bg-[#5865F2] w-12 h-12 shrink-0 rounded-xl flex items-center justify-center shadow-[0_4px_15px_rgba(88,101,242,0.3)] group-hover:-translate-y-1 transition-transform duration-300">
+                            <i class="fa-brands fa-discord text-2xl text-white"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-bold text-[17px] text-white truncate">Serwer Discord</h2>
+                            <p class="text-[13px] text-gray-400 font-medium truncate">Graj i gadaj z nami!</p>
+                        </div>
+                        <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#5865F2] group-hover:translate-x-1 transition-all duration-300 shrink-0"></i>
                     </div>
-                    <div class="flex-1">
-                        <h2 class="font-bold text-lg text-white">Serwer Discord</h2>
-                        <p class="text-sm text-gray-400">Graj i gadaj z nami!</p>
-                    </div>
-                    <i class="fa-solid fa-arrow-right text-gray-500 group-hover:text-[#5865F2] transition-colors"></i>
-                </div>
-            </a>
+                </a>
+            </div>
 
         </div>
 
         <!-- Stopka -->
-        <footer class="mt-12 text-center text-gray-500 text-xs fade-in-up delay-7">
+        <footer class="mt-14 mb-4 text-center text-gray-500 text-[11px] font-medium tracking-wide fade-in-up delay-7">
             <p>&copy; <script>document.write(new Date().getFullYear())</script> Zawlox. Wszelkie prawa zastrzeżone.</p>
         </footer>
 
@@ -408,41 +493,16 @@
 
     <!-- Powiadomienie Toast -->
     <div id="custom-toast" class="toast">
-        <i class="fa-solid fa-circle-check text-[#53FC18]"></i>
-        <span>Link skopiowany!</span>
+        <i class="fa-solid fa-circle-check text-[#53FC18] text-lg"></i>
+        <span>Skopiowano link do schowka!</span>
     </div>
 
     <script>
-        // --- 1. Obsługa Zmiany Awatara ---
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedAvatar = localStorage.getItem('zawlox_avatar');
-            if (savedAvatar) {
-                document.getElementById('profile-img').src = savedAvatar;
-            }
-        });
-
-        function loadAvatar(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const imageUrl = e.target.result;
-                    document.getElementById('profile-img').src = imageUrl;
-                    try {
-                        localStorage.setItem('zawlox_avatar', imageUrl);
-                    } catch(err) {
-                        console.log("Zbyt duży plik do zapisania w Pamięci Podręcznej.");
-                    }
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        // --- 2. Udostępnianie & Powiadomienia (Toast) ---
+        // --- 1. Udostępnianie & Powiadomienia (Toast) ---
         function shareProfile() {
             if (navigator.share) {
                 navigator.share({
-                    title: 'Zawlox - Social Media',
+                    title: 'Zawlox | Social Hub',
                     text: 'Wpadnij na moje sociale i streamy!',
                     url: window.location.href
                 }).catch((error) => console.log('Udostępnianie anulowane', error));
@@ -458,27 +518,73 @@
             setTimeout(() => { toast.classList.remove('show'); }, 3000);
         }
 
-        // --- 3. Własny Kursor (Tylko komputery PC) ---
-        const cursor = document.getElementById('custom-cursor');
-        // Sprawdzamy czy użytkownik używa urządzenia bez dotyku
+        // --- STREAMING_CHUNK:Logika Kursora (Sprzętowa Akceleracja) ---
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorOutline = document.getElementById('cursor-outline');
+        
+        // Wykrywamy PC
         if (window.matchMedia("(pointer: fine)").matches) {
+            let mouseX = window.innerWidth / 2;
+            let mouseY = window.innerHeight / 2;
+
             document.addEventListener('mousemove', (e) => {
-                cursor.style.left = e.clientX + 'px';
-                cursor.style.top = e.clientY + 'px';
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                // Używamy transform3d dla 60fps bez obciążania układu strony (layout thrashing)
+                cursorDot.style.transform = `translate3d(calc(${mouseX}px - 50%), calc(${mouseY}px - 50%), 0)`;
+                cursorOutline.style.transform = `translate3d(calc(${mouseX}px - 50%), calc(${mouseY}px - 50%), 0)`;
             });
 
-            // Reagowanie na najechanie na klikalne elementy
-            const interactables = document.querySelectorAll('a, button, .spin-border-wrapper');
-            interactables.forEach(el => {
-                el.addEventListener('mouseenter', () => cursor.classList.add('hovering'));
-                el.addEventListener('mouseleave', () => cursor.classList.remove('hovering'));
+            document.addEventListener('mousedown', () => {
+                cursorOutline.classList.add('clicking');
             });
-        } else {
-            // Bezpiecznik: usunięcie kursora na telefonach całkowicie z DOM
-            cursor.remove();
+            document.addEventListener('mouseup', () => {
+                cursorOutline.classList.remove('clicking');
+            });
+
+            // Efekty najechania
+            const interactables = document.querySelectorAll('a, button, .spin-border-wrapper, input');
+            interactables.forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    cursorOutline.classList.add('hovering');
+                    cursorDot.style.opacity = '0';
+                });
+                el.addEventListener('mouseleave', () => {
+                    cursorOutline.classList.remove('hovering');
+                    cursorDot.style.opacity = '1';
+                });
+            });
         }
 
-        // --- 4. System Cząsteczek (Particles) ---
+        // --- STREAMING_CHUNK:Logika 3D Tilt Kart ---
+        const cards = document.querySelectorAll('.glass-card');
+        
+        if (window.matchMedia("(pointer: fine)").matches) {
+            cards.forEach(card => {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left; // pozycja X myszy na karcie
+                    const y = e.clientY - rect.top;  // pozycja Y myszy na karcie
+                    
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    
+                    // Obliczamy stopień wychylenia (im dalej od środka, tym mocniej)
+                    const rotateX = ((y - centerY) / centerY) * -8; // max 8 stopni
+                    const rotateY = ((x - centerX) / centerX) * 8;
+                    
+                    card.classList.remove('reset-tilt');
+                    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+                });
+
+                card.addEventListener('mouseleave', () => {
+                    card.classList.add('reset-tilt');
+                    card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+                });
+            });
+        }
+
+        // --- STREAMING_CHUNK:Zaawansowany System Cząsteczek z Liniami ---
         const canvas = document.getElementById('particles-canvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
@@ -487,30 +593,30 @@
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            initParticles(); // Re-inicjalizacja przy zmianie rozmiaru
         }
         window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
 
         class Particle {
             constructor() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 2.5 + 0.5;
-                this.speedX = Math.random() * 1 - 0.5;
-                this.speedY = Math.random() * 1 - 0.5;
+                this.size = Math.random() * 2 + 0.5;
+                this.speedX = (Math.random() - 0.5) * 0.8;
+                this.speedY = (Math.random() - 0.5) * 0.8;
                 this.color = colors[Math.floor(Math.random() * colors.length)];
-                this.alpha = Math.random() * 0.5 + 0.1;
+                this.baseAlpha = Math.random() * 0.4 + 0.1;
             }
             update() {
                 this.x += this.speedX;
                 this.y += this.speedY;
-                if (this.x > canvas.width) this.x = 0;
-                else if (this.x < 0) this.x = canvas.width;
-                if (this.y > canvas.height) this.y = 0;
-                else if (this.y < 0) this.y = canvas.height;
+                
+                // Odbijanie od krawędzi dla płynności
+                if (this.x > canvas.width || this.x < 0) this.speedX *= -1;
+                if (this.y > canvas.height || this.y < 0) this.speedY *= -1;
             }
             draw() {
-                ctx.globalAlpha = this.alpha;
+                ctx.globalAlpha = this.baseAlpha;
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -520,22 +626,87 @@
 
         function initParticles() {
             particles = [];
-            let particleCount = window.innerWidth < 768 ? 40 : 80; // Mniej na telefonach
+            // Znacznie mniej cząsteczek na telefonach ze względu na łączenie ich liniami
+            let particleCount = window.innerWidth < 768 ? 25 : 50; 
             for (let i = 0; i < particleCount; i++) {
                 particles.push(new Particle());
             }
         }
-        initParticles();
 
         function animateParticles() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
             for (let i = 0; i < particles.length; i++) {
                 particles[i].update();
                 particles[i].draw();
+                
+                // Rysowanie linii między bliskimi cząsteczkami (Constellation effect)
+                for (let j = i; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const maxDistance = window.innerWidth < 768 ? 100 : 150;
+                    
+                    if (distance < maxDistance) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = particles[i].color;
+                        // Im bliżej, tym wyraźniejsza linia
+                        const opacity = 1 - (distance / maxDistance);
+                        ctx.globalAlpha = opacity * 0.25; 
+                        ctx.lineWidth = 0.8;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
             }
             requestAnimationFrame(animateParticles);
         }
+
+        // Uruchomienie
+        resizeCanvas();
         animateParticles();
+
+        // --- STREAMING_CHUNK:Dynamiczne Powitanie ---
+        function updateGreeting() {
+            const hour = new Date().getHours();
+            const greetingEl = document.getElementById('dynamic-greeting');
+            let text = "Witaj!";
+            
+            if (hour >= 5 && hour < 12) text = "Dzień dobry!";
+            else if (hour >= 12 && hour < 18) text = "Dobrego popołudnia!";
+            else if (hour >= 18 && hour < 22) text = "Dobry wieczór!";
+            else text = "Dobrej nocy!";
+            
+            greetingEl.textContent = text;
+        }
+        updateGreeting();
+
+        // --- STREAMING_CHUNK:Magnetyczne Elementy (Magnetic Hover) ---
+        if (window.matchMedia("(pointer: fine)").matches) {
+            const magneticWraps = document.querySelectorAll('.magnetic-wrap');
+            
+            magneticWraps.forEach(wrap => {
+                const el = wrap.querySelector('.magnetic');
+                
+                wrap.addEventListener('mousemove', (e) => {
+                    const rect = wrap.getBoundingClientRect();
+                    // Oblicz środek elementu
+                    const x = e.clientX - rect.left - rect.width / 2;
+                    const y = e.clientY - rect.top - rect.height / 2;
+                    
+                    el.classList.add('magnetizing');
+                    // Przesuń o 30% dystansu myszy od środka (siła magnesu)
+                    el.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px)`;
+                });
+                
+                wrap.addEventListener('mouseleave', () => {
+                    el.classList.remove('magnetizing');
+                    el.style.transform = `translate(0px, 0px)`;
+                });
+            });
+        }
+
     </script>
 </body>
 </html>

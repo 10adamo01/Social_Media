@@ -908,7 +908,7 @@
         const DISCORD_INVITE = 'GgkJnQAcsa';
         const YT_CHANNEL_ID = 'UCV_IfRlGTGoLTC7acJPxHvA'; // @zawlox
         const YT_API_KEY = ''; // OPCJONALNIE: klucz YouTube Data API v3 (daty zawsze + szybciej)
-        const STATUS_REFRESH_MS = 2 * 60 * 1000;
+        const STATUS_REFRESH_MS = 60 * 1000; // status streama sprawdzany co minutę
 
         const VIDEOS_LIMIT = 6;
         const SHORTS_LIMIT = 8;
@@ -980,7 +980,44 @@
         // =====================================================================
         const heroState = { status: null, latestVideo: undefined };
 
-        async function getTwitchStatus() {
+        // Czas trwania streama, np. "1 godz. 25 min"
+        function formatUptime(startIso) {
+            const mins = Math.max(0, Math.floor((Date.now() - Date.parse(startIso)) / 60000));
+            const h = Math.floor(mins / 60), m = mins % 60;
+            return h ? `${h} godz. ${m} min` : `${m} min`;
+        }
+
+        // Główne źródło: publiczne API, z którego korzysta sam twitch.tv – odpowiada natychmiast.
+        // (To nieoficjalny sposób; gdyby Twitch go zmienił, strona przełączy się na decapi.)
+        async function getTwitchStatusDirect() {
+            const query = `query { user(login: "${TWITCH_USER}") {
+                followers { totalCount }
+                lastBroadcast { title game { name } }
+                stream { viewersCount createdAt title game { name } }
+            } }`;
+            const r = await fetch('https://gql.twitch.tv/gql', {
+                method: 'POST',
+                headers: { 'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ query }),
+                signal: timeoutSignal(8000)
+            });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const user = (await r.json())?.data?.user;
+            if (!user) throw new Error('Brak danych');
+            const st = user.stream, last = user.lastBroadcast || {};
+            return {
+                platform: 'twitch',
+                live: !!st,
+                title: (st ? st.title : last.title) || '',
+                game: ((st ? st.game : last.game) || {}).name || '',
+                viewers: st ? st.viewersCount : null,
+                uptime: st && st.createdAt ? formatUptime(st.createdAt) : '',
+                followers: user.followers ? user.followers.totalCount : null
+            };
+        }
+
+        // Zapas: decapi (działa zawsze, ale status odświeża z kilkuminutowym opóźnieniem)
+        async function getTwitchStatusDecapi() {
             const base = 'https://decapi.me/twitch/';
             const [uptime, title, game, viewers, followers] = await Promise.all([
                 fetchText(base + 'uptime/' + TWITCH_USER),
@@ -1000,6 +1037,11 @@
                 uptime: live ? uptime : '',
                 followers: /^\d+$/.test(followers) ? Number(followers) : null
             };
+        }
+
+        async function getTwitchStatus() {
+            try { return await getTwitchStatusDirect(); }
+            catch (e) { return getTwitchStatusDecapi(); }
         }
 
         async function getKickStatus() {
@@ -1048,6 +1090,8 @@
         }
         checkLiveStatus();
         setInterval(() => { if (!document.hidden) checkLiveStatus(); }, STATUS_REFRESH_MS);
+        // po powrocie na kartę od razu sprawdź, czy coś się zmieniło
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) checkLiveStatus(); });
 
         // =====================================================================
         // "🔴 LIVE" W KARCIE PRZEGLĄDARKI (tytuł + czerwona kropka na ikonce)

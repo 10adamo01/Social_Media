@@ -574,17 +574,20 @@
             return Math.round(Math.max(38, Math.min(66, Math.min(r.width, r.height) * 0.11)));
         }
 
+        // Pozycje celów w % areny – dzięki temu zostają na miejscu także po zmianie rozmiaru okna
         function spawnTarget() {
             const r = arena.getBoundingClientRect();
+            const w = Math.max(r.width, 1), h = Math.max(r.height, 1);
             const size = targetSize();
-            const pad = size / 2 + 8;
-            let x = 0, y = 0;
+            const padX = (size / 2 + 8) / w * 100, padY = (size / 2 + 8) / h * 100;
+            let x = 50, y = 50;
             for (let tries = 0; tries < 20; tries++) {
-                x = pad + Math.random() * (r.width - pad * 2);
-                y = pad + Math.random() * (r.height - pad * 2);
+                x = padX + Math.random() * (100 - padX * 2);
+                y = padY + Math.random() * (100 - padY * 2);
                 let ok = true;
                 for (const el of live.keys()) {
-                    const dx = parseFloat(el.style.left) - x, dy = parseFloat(el.style.top) - y;
+                    const dx = (parseFloat(el.style.left) - x) / 100 * w;
+                    const dy = (parseFloat(el.style.top) - y) / 100 * h;
                     if (Math.hypot(dx, dy) < size * 1.6) { ok = false; break; }
                 }
                 if (ok) break;
@@ -592,8 +595,8 @@
             const t = document.createElement('div');
             t.className = 'target';
             t.style.setProperty('--size', size + 'px');
-            t.style.left = x + 'px';
-            t.style.top = y + 'px';
+            t.style.left = x + '%';
+            t.style.top = y + '%';
             arena.appendChild(t);
             live.set(t, performance.now());
         }

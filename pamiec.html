@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pamięć | Zawlox</title>
+    <meta name="description" content="Zapamiętaj i powtórz coraz dłuższą sekwencję kolorów. Zaloguj się przez Discord i zawalcz o top 5.">
+    <meta property="og:title" content="Pamięć | Zawlox">
+    <meta property="og:description" content="Zapamiętaj i powtórz coraz dłuższą sekwencję kolorów. Zaloguj się przez Discord i zawalcz o top 5.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://10adamo01.github.io/Social_Media/podglad.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#0e0e10">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 0h52v52L52 64H0V12z' fill='%230e0e10' stroke='%23d4d4d8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23a970ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gry.css">
+    <style>
+        .mem {
+            position: absolute; inset: 18px 18px 38px;
+            display: grid; place-items: center;
+            container-type: size;
+        }
+        .mem-grid {
+            display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 14px;
+            width: 300px; height: 300px;                       /* zapas dla starszych przeglądarek */
+            width: min(100cqw, 100cqh, 440px); height: min(100cqw, 100cqh, 440px);
+        }
+        .mem-pad {
+            --c: 18px;
+            position: relative;
+            display: grid; place-items: center;
+            background: var(--col);
+            opacity: 0.32;
+            clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
+            font-family: var(--font-display); font-weight: 900; font-size: 28px; color: rgba(0, 0, 0, 0.45);
+            transition: opacity 0.12s, transform 0.12s, filter 0.12s;
+        }
+        .mem-pad.is-lit { opacity: 1; transform: scale(1.03); filter: brightness(1.15) drop-shadow(0 0 18px var(--col)); }
+        .mem.is-input .mem-pad { cursor: pointer; }
+        .mem.is-input .mem-pad:hover { opacity: 0.5; }
+        .mem-status {
+            position: absolute; left: 0; right: 0; bottom: 12px; text-align: center;
+            font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+        }
+        .stage.is-wrong { animation: shake 0.35s; }
+        @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+    </style>
+</head>
+<body>
+    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <main>
+        <div class="top">
+            <a class="back" href="minigierki.html"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Minigierki</a>
+            <a class="back" href="./"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Zawlox</a>
+        </div>
+
+        <div class="title-row">
+            <div>
+                <p class="kicker">Minigierka · Pamięć</p>
+                <h1>Pamięć</h1>
+            </div>
+            <p class="rules">Patrz, które pola się zapalają, i powtórz je <b>w tej samej kolejności</b> (myszką albo klawiszami <b>1–4</b>). Każda runda dokłada jedno pole. Jedna pomyłka kończy grę.</p>
+        </div>
+
+        <div class="layout">
+            <div>
+                <dl class="hudbar" style="--cols: 3" aria-label="Statystyki gry">
+                    <div><dt>Poziom</dt><dd id="hud-level">0</dd></div>
+                    <div><dt>Sekwencja</dt><dd id="hud-len">–</dd></div>
+                    <div><dt>Tura</dt><dd id="hud-turn">–</dd></div>
+                </dl>
+                <div class="hud stage-frame">
+                    <div class="hud-in">
+                        <div id="stage" class="stage" aria-label="Plansza gry">
+                            <div id="mem" class="mem">
+                                <div class="mem-grid">
+                                    <button type="button" class="mem-pad" data-i="0" style="--col: #a970ff" aria-label="Fioletowy">1</button>
+                                    <button type="button" class="mem-pad" data-i="1" style="--col: #2fd17a" aria-label="Zielony">2</button>
+                                    <button type="button" class="mem-pad" data-i="2" style="--col: #f5c542" aria-label="Żółty">3</button>
+                                    <button type="button" class="mem-pad" data-i="3" style="--col: #38bdf8" aria-label="Niebieski">4</button>
+                                </div>
+                            </div>
+                            <div id="mem-status" class="mem-status" aria-live="polite"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <aside id="gry-side" class="side"></aside>
+        </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script src="gry-lista.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script src="gry.js"></script>
+    <script>
+        // ===================== PAMIĘĆ =====================
+        const FLASH_MS = 450;      // jak długo świeci pole w pokazie
+        const GAP_MS = 200;        // przerwa między polami
+        const NEXT_ROUND_MS = 700; // przerwa przed kolejną rundą
+
+        const $ = (id) => document.getElementById(id);
+        const stage = $('stage');
+        const mem = $('mem');
+        const pads = [...document.querySelectorAll('.mem-pad')];
+        let seq = [], pos = 0, level = 0, inputOn = false, runId = 0;
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        function status(text) { $('mem-status').textContent = text; }
+        function updateHud() {
+            $('hud-level').textContent = level;
+            $('hud-len').textContent = seq.length || '–';
+            $('hud-turn').textContent = inputOn ? 'Ty' : (Gry.playing ? 'Patrz' : '–');
+        }
+
+        async function flash(i, ms) {
+            pads[i].classList.add('is-lit');
+            await sleep(ms);
+            pads[i].classList.remove('is-lit');
+        }
+
+        async function playRound() {
+            const id = ++runId;
+            seq.push(Math.floor(Math.random() * 4));
+            pos = 0; inputOn = false;
+            mem.classList.remove('is-input');
+            status('Zapamiętaj sekwencję');
+            updateHud();
+            await sleep(NEXT_ROUND_MS);
+            for (const i of seq) {
+                if (id !== runId || !Gry.playing) return;
+                await flash(i, FLASH_MS);
+                await sleep(GAP_MS);
+            }
+            if (id !== runId || !Gry.playing) return;
+            inputOn = true;
+            mem.classList.add('is-input');
+            status('Twoja kolej – powtórz');
+            updateHud();
+        }
+
+        function choose(i) {
+            if (!Gry.playing || !inputOn) return;
+            flash(i, 180);
+            if (i !== seq[pos]) {
+                stage.classList.remove('is-wrong'); void stage.offsetWidth; stage.classList.add('is-wrong');
+                end(false);
+                return;
+            }
+            pos++;
+            if (pos === seq.length) {
+                level = seq.length;
+                inputOn = false;
+                mem.classList.remove('is-input');
+                status('Dobrze!');
+                updateHud();
+                playRound();
+            }
+        }
+
+        pads.forEach(p => p.addEventListener('pointerdown', (e) => { e.preventDefault(); choose(Number(p.dataset.i)); }));
+        document.addEventListener('keydown', (e) => {
+            const k = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4'].indexOf(e.code);
+            if (k >= 0 && Gry.playing) { e.preventDefault(); choose(k % 4); }
+        });
+
+        function end(aborted) {
+            runId++;
+            inputOn = false;
+            mem.classList.remove('is-input');
+            status(aborted ? 'Gra przerwana' : `Koniec – zapamiętane: ${level}`);
+            updateHud();
+            Gry.finish({
+                score: level, aborted,
+                details: {},
+                stats: [['Najdłuższa sekwencja', String(level)], ['Pomyłka w', seq.length ? `rundzie ${seq.length}` : '–']]
+            });
+        }
+
+        Gry.init({
+            game: 'memory',
+            stage,
+            countdown: false,
+            onPrepare() { runId++; seq = []; pos = 0; level = 0; inputOn = false; status(''); updateHud(); },
+            onStart() { playRound(); },
+            onAbort() { end(true); },
+            onMenu() { status(''); updateHud(); }
+        });
+    </script>
+</body>
+</html>

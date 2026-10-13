@@ -485,13 +485,14 @@
         }
         .home-board { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
         .home-row {
-            display: grid; grid-template-columns: 26px 30px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+            display: grid; grid-template-columns: 96px 30px minmax(0, 1fr) auto; align-items: center; gap: 10px;
             padding: 8px 12px; background: var(--surface-2);
         }
-        .home-rank { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 20px; text-align: center; color: var(--dim); }
-        .home-row:nth-child(1) .home-rank { color: #f5c542; }
-        .home-row:nth-child(2) .home-rank { color: #c9ccd3; }
-        .home-row:nth-child(3) .home-rank { color: #cd8a4f; }
+        .home-game {
+            font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase;
+            color: var(--accent-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .home-game:hover { color: #fff; }
         .home-av { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: #2a2a30; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: var(--muted); }
         .home-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .home-score { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
@@ -877,7 +878,7 @@
             </div>
         </section>
 
-        <!-- ===================== MINIGRA ===================== -->
+        <!-- ===================== MINIGIERKI ===================== -->
         <section aria-labelledby="game-title">
             <div class="hud game-teaser">
                 <div class="hud-in">
@@ -885,16 +886,16 @@
                         <div class="hud is-silver plate">
                             <div class="hud-in">
                                 <span class="plate-icon"><svg class="ic" aria-hidden="true"><use href="#i-gamepad"/></svg></span>
-                                <h2 id="game-title" class="plate-title">Aim Trainer</h2>
+                                <h2 id="game-title" class="plate-title">Minigierki</h2>
                             </div>
                         </div>
-                        <p class="note">30 sekund, ile trafisz? Zaloguj się przez Discord i zawalcz o miejsce w top 5.</p>
-                        <a class="btn btn-primary" href="gra.html">
+                        <p class="note">Celność, refleks, pamięć i zręczność – każda gra ma własny ranking. Zaloguj się przez Discord i zawalcz o top 5.</p>
+                        <a class="btn btn-primary" href="minigierki.html">
                             <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg> Zagraj
                         </a>
                     </div>
                     <div class="game-board">
-                        <p class="game-board-title">Top 5</p>
+                        <p class="game-board-title">Liderzy</p>
                         <ol id="home-board" class="home-board" aria-live="polite">
                             <li class="home-empty">Ranking wkrótce</li>
                         </ol>
@@ -954,8 +955,9 @@
         </div>
     </div>
 
-    <!-- Ustawienia rankingu minigry (wspólne z gra.html) -->
+    <!-- Ustawienia rankingu i lista minigierek (wspólne z grami) -->
     <script src="config.js"></script>
+    <script src="gry-lista.js"></script>
     <script>
         // =====================================================================
         // USTAWIENIA – tu zmieniasz linki i nazwy
@@ -1303,32 +1305,40 @@
         })();
 
         // =====================================================================
-        // MINIGRA: top 5 z Supabase (lekko – zwykłe zapytanie, bez biblioteki)
+        // MINIGIERKI: lider każdej gry (zwykłe zapytania, bez biblioteki)
         // =====================================================================
         (async function loadHomeBoard() {
             const cfg = window.ZAWLOX_CONFIG || {};
+            const gry = window.ZAWLOX_GRY || {};
             if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return; // ranking jeszcze nie skonfigurowany
             const board = $('home-board');
+            const base = cfg.supabaseUrl.replace(/\/$/, '');
+            const headers = { apikey: cfg.supabaseAnonKey, Authorization: `Bearer ${cfg.supabaseAnonKey}` };
             try {
-                const url = `${cfg.supabaseUrl.replace(/\/$/, '')}/rest/v1/leaderboard?select=player_name,avatar_url,score&order=score.desc,created_at.asc&limit=5`;
-                const r = await fetch(url, { headers: { apikey: cfg.supabaseAnonKey, Authorization: `Bearer ${cfg.supabaseAnonKey}` }, signal: timeoutSignal(8000) });
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                const rows = await r.json();
-                if (!rows.length) { board.innerHTML = '<li class="home-empty">Brak wyników – bądź pierwszy!</li>'; return; }
+                const rows = await Promise.all(Object.entries(gry).map(async ([id, g]) => {
+                    const url = `${base}/rest/v1/leaderboard?select=player_name,avatar_url,score&game=eq.${id}&order=score.${g.lower ? 'asc' : 'desc'},created_at.asc&limit=1`;
+                    const r = await fetch(url, { headers, signal: timeoutSignal(8000) });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return { id, g, top: (await r.json())[0] || null };
+                }));
                 board.innerHTML = '';
-                rows.forEach((p, i) => {
+                for (const { g, top } of rows) {
                     const li = document.createElement('li');
                     li.className = 'home-row';
-                    const rank = document.createElement('span'); rank.className = 'home-rank'; rank.textContent = i + 1;
+                    const game = document.createElement('a');
+                    game.className = 'home-game'; game.href = g.url; game.textContent = g.name;
                     let av;
-                    if (p.avatar_url) { av = document.createElement('img'); av.src = p.avatar_url; av.alt = ''; av.loading = 'lazy'; av.referrerPolicy = 'no-referrer'; }
-                    else { av = document.createElement('span'); av.textContent = (p.player_name || '?').slice(0, 1).toUpperCase(); }
+                    if (top && top.avatar_url) { av = document.createElement('img'); av.src = top.avatar_url; av.alt = ''; av.loading = 'lazy'; av.referrerPolicy = 'no-referrer'; }
+                    else { av = document.createElement('span'); av.textContent = top ? (top.player_name || '?').slice(0, 1).toUpperCase() : '–'; }
                     av.className = 'home-av';
-                    const name = document.createElement('span'); name.className = 'home-name'; name.textContent = p.player_name;
-                    const score = document.createElement('span'); score.className = 'home-score'; score.textContent = nf.format(p.score);
-                    li.append(rank, av, name, score);
+                    const name = document.createElement('span'); name.className = 'home-name';
+                    name.textContent = top ? top.player_name : 'Brak wyników';
+                    if (!top) name.style.color = 'var(--dim)';
+                    const score = document.createElement('span'); score.className = 'home-score';
+                    score.textContent = top ? nf.format(top.score) + (g.unit ? ' ' + g.unit : '') : '';
+                    li.append(game, av, name, score);
                     board.appendChild(li);
-                });
+                }
             } catch (e) {
                 board.innerHTML = '<li class="home-empty">Nie udało się wczytać rankingu</li>';
             }

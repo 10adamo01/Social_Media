@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refleks | Zawlox</title>
+    <meta name="description" content="Sprawdź swój refleks: kliknij, gdy ekran zrobi się zielony. Zaloguj się przez Discord i zawalcz o top 5.">
+    <meta property="og:title" content="Refleks | Zawlox">
+    <meta property="og:description" content="Sprawdź swój refleks: kliknij, gdy ekran zrobi się zielony. Zaloguj się przez Discord i zawalcz o top 5.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://10adamo01.github.io/Social_Media/podglad.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#0e0e10">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 0h52v52L52 64H0V12z' fill='%230e0e10' stroke='%23d4d4d8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23a970ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gry.css">
+    <style>
+        .pad {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+            padding: 20px; text-align: center;
+            cursor: pointer;
+            transition: background-color 0.08s;
+        }
+        .pad-big {
+            font-family: var(--font-display); font-weight: 900; font-size: clamp(44px, 9vw, 84px); line-height: 1;
+            text-transform: uppercase; font-variant-numeric: tabular-nums;
+        }
+        .pad-small { font-size: 15px; font-weight: 700; opacity: 0.85; }
+        .pad.is-wait { background: #8f1d22; }
+        .pad.is-go { background: #1f9d55; }
+        .pad.is-early { background: #3a2a0c; }
+        .pad.is-early .pad-big { color: #ffcf5c; }
+        .pad.is-result { background: #1b1b22; }
+        .dots { display: flex; gap: 8px; margin-top: 8px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
+        .dot.is-done { background: #fff; }
+    </style>
+</head>
+<body>
+    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <main>
+        <div class="top">
+            <a class="back" href="minigierki.html"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Minigierki</a>
+            <a class="back" href="./"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Zawlox</a>
+        </div>
+
+        <div class="title-row">
+            <div>
+                <p class="kicker">Minigierka · Czas reakcji</p>
+                <h1>Refleks</h1>
+            </div>
+            <p class="rules">Gdy ekran zrobi się <b>zielony</b>, kliknij jak najszybciej (albo spacja). <b>5 prób</b>, liczy się średni czas – im mniej, tym lepiej. Kliknięcie za wcześnie powtarza próbę.</p>
+        </div>
+
+        <div class="layout">
+            <div>
+                <dl class="hudbar" aria-label="Statystyki gry">
+                    <div><dt>Próba</dt><dd id="hud-try">0/5</dd></div>
+                    <div><dt>Ostatni</dt><dd id="hud-last">–</dd></div>
+                    <div><dt>Najlepszy</dt><dd id="hud-best">–</dd></div>
+                    <div><dt>Średnia</dt><dd id="hud-avg">–</dd></div>
+                </dl>
+                <div class="hud stage-frame">
+                    <div class="hud-in">
+                        <div id="stage" class="stage" aria-label="Plansza gry">
+                            <div id="pad" class="pad" aria-live="polite">
+                                <div id="pad-big" class="pad-big">Refleks</div>
+                                <div id="pad-small" class="pad-small">Kliknij „Graj”, żeby zacząć</div>
+                                <div id="dots" class="dots" aria-hidden="true"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <aside id="gry-side" class="side"></aside>
+        </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script src="gry-lista.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script src="gry.js"></script>
+    <script>
+        // ===================== REFLEKS =====================
+        const TRIES = 5;           // liczba prób
+        const MIN_WAIT = 1500;     // najkrótsze czekanie na zielony (ms)
+        const MAX_WAIT = 4000;     // najdłuższe czekanie (ms)
+        const MIN_HUMAN = 80;      // szybciej niż to = zgadywanie
+        const MAX_TIME = 5000;
+
+        const $ = (id) => document.getElementById(id);
+        const stage = $('stage');
+        let times = [], phase = 'idle', timer = 0, goAt = 0, falseStarts = 0;
+
+        const avg = () => times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
+
+        function setPad(kind, big, small) {
+            $('pad').className = 'pad' + (kind ? ' is-' + kind : '');
+            $('pad-big').textContent = big;
+            $('pad-small').textContent = small || '';
+            $('dots').innerHTML = Array.from({ length: TRIES }, (_, i) => `<span class="dot${i < times.length ? ' is-done' : ''}"></span>`).join('');
+        }
+
+        function updateHud() {
+            $('hud-try').textContent = `${Math.min(times.length + (phase === 'wait' || phase === 'go' ? 1 : 0), TRIES)}/${TRIES}`;
+            $('hud-last').textContent = times.length ? times[times.length - 1] : '–';
+            $('hud-best').textContent = times.length ? Math.min(...times) : '–';
+            $('hud-avg').textContent = times.length ? avg() : '–';
+        }
+
+        function armWait() {
+            phase = 'wait';
+            setPad('wait', 'Czekaj…', 'Kliknij, gdy zrobi się zielono');
+            updateHud();
+            timer = setTimeout(() => {
+                phase = 'go';
+                setPad('go', 'Klikaj!', '');
+                // czas liczymy od momentu, gdy zielony ekran faktycznie się wyświetla
+                requestAnimationFrame(() => { goAt = performance.now(); });
+            }, MIN_WAIT + Math.random() * (MAX_WAIT - MIN_WAIT));
+        }
+
+        function press() {
+            if (!Gry.playing) return;
+            if (phase === 'wait') {
+                clearTimeout(timer);
+                falseStarts++;
+                phase = 'early';
+                setPad('early', 'Za wcześnie!', 'Kliknij, żeby spróbować jeszcze raz');
+                return;
+            }
+            if (phase === 'go') {
+                if (!goAt) return;
+                const rt = Math.round(performance.now() - goAt);
+                if (rt < MIN_HUMAN) {
+                    falseStarts++;
+                    phase = 'early';
+                    setPad('early', 'Zgadywanie!', 'Tak szybko się nie da – kliknij, żeby powtórzyć');
+                    return;
+                }
+                times.push(Math.min(rt, MAX_TIME));
+                goAt = 0;
+                updateHud();
+                if (times.length >= TRIES) { end(false); return; }
+                phase = 'between';
+                setPad('result', rt + ' ms', 'Kliknij, żeby przejść do następnej próby');
+                return;
+            }
+            if (phase === 'early' || phase === 'between') armWait();
+        }
+
+        stage.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.overlay')) return;
+            e.preventDefault();
+            press();
+        });
+        document.addEventListener('keydown', (e) => {
+            if ((e.code === 'Space' || e.code === 'Enter') && Gry.playing) { e.preventDefault(); press(); }
+        });
+
+        function end(aborted) {
+            clearTimeout(timer);
+            phase = 'done';
+            const score = avg() || 0;
+            setPad('result', times.length ? score + ' ms' : 'Refleks', aborted ? 'Gra przerwana' : 'Średni czas reakcji');
+            Gry.finish({
+                score, aborted,
+                details: { times },
+                stats: [
+                    ['Najlepszy', times.length ? Math.min(...times) + ' ms' : '–'],
+                    ['Najgorszy', times.length ? Math.max(...times) + ' ms' : '–'],
+                    ['Falstarty', String(falseStarts)]
+                ]
+            });
+        }
+
+        Gry.init({
+            game: 'reflex',
+            stage,
+            countdown: false,
+            onPrepare() { clearTimeout(timer); times = []; falseStarts = 0; goAt = 0; phase = 'idle'; updateHud(); },
+            onStart() { armWait(); },
+            onAbort() { end(true); },
+            onMenu() { times = []; phase = 'idle'; setPad('', 'Refleks', 'Kliknij „Graj”, żeby zacząć'); updateHud(); }
+        });
+        setPad('', 'Refleks', 'Kliknij „Graj”, żeby zacząć');
+    </script>
+</body>
+</html>

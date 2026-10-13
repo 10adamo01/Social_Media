@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wąż | Zawlox</title>
+    <meta name="description" content="Klasyczny snake – zbieraj punkty i nie wjedź w ścianę. Zaloguj się przez Discord i zawalcz o top 5.">
+    <meta property="og:title" content="Wąż | Zawlox">
+    <meta property="og:description" content="Klasyczny snake – zbieraj punkty i nie wjedź w ścianę. Zaloguj się przez Discord i zawalcz o top 5.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://10adamo01.github.io/Social_Media/podglad.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#0e0e10">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 0h52v52L52 64H0V12z' fill='%230e0e10' stroke='%23d4d4d8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23a970ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gry.css">
+    <style>
+        .stage.snake-stage { aspect-ratio: 20 / 14; min-height: 0; background: #111114; }
+        @media (max-width: 600px) { .stage.snake-stage { aspect-ratio: 20 / 14; } }
+        #board-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+        .dpad {
+            display: none;
+            grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 54px); gap: 8px;
+            justify-content: center; margin-top: 12px;
+        }
+        .dpad button {
+            display: grid; place-items: center;
+            background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line);
+            font-size: 22px; font-weight: 900; color: var(--text);
+            touch-action: manipulation;
+        }
+        .dpad button:active { background: var(--accent); }
+        .dpad .up { grid-column: 2; grid-row: 1; }
+        .dpad .left { grid-column: 1; grid-row: 2; }
+        .dpad .down { grid-column: 2; grid-row: 2; }
+        .dpad .right { grid-column: 3; grid-row: 2; }
+        @media (hover: none) and (pointer: coarse), (max-width: 700px) { .dpad { display: grid; } }
+    </style>
+</head>
+<body>
+    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <main>
+        <div class="top">
+            <a class="back" href="minigierki.html"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Minigierki</a>
+            <a class="back" href="./"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Zawlox</a>
+        </div>
+
+        <div class="title-row">
+            <div>
+                <p class="kicker">Minigierka · Zręczność</p>
+                <h1>Wąż</h1>
+            </div>
+            <p class="rules">Steruj <b>strzałkami</b> lub <b>WASD</b> (na telefonie przyciskami albo przesuwając palcem). Każdy punkt wydłuża węża i przyspiesza grę. Ściana albo własny ogon kończą grę.</p>
+        </div>
+
+        <div class="layout">
+            <div>
+                <dl class="hudbar" style="--cols: 3" aria-label="Statystyki gry">
+                    <div><dt>Punkty</dt><dd id="hud-score">0</dd></div>
+                    <div><dt>Długość</dt><dd id="hud-len">3</dd></div>
+                    <div><dt>Prędkość</dt><dd id="hud-speed">1×</dd></div>
+                </dl>
+                <div class="hud stage-frame">
+                    <div class="hud-in">
+                        <div id="stage" class="stage" aria-label="Plansza gry">
+                            <canvas id="board-canvas" aria-label="Plansza węża"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="dpad" aria-label="Sterowanie">
+                    <button type="button" class="up" data-dir="up" aria-label="Góra">▲</button>
+                    <button type="button" class="left" data-dir="left" aria-label="Lewo">◀</button>
+                    <button type="button" class="down" data-dir="down" aria-label="Dół">▼</button>
+                    <button type="button" class="right" data-dir="right" aria-label="Prawo">▶</button>
+                </div>
+            </div>
+            <aside id="gry-side" class="side"></aside>
+        </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script src="gry-lista.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script src="gry.js"></script>
+    <script>
+        // ===================== WĄŻ =====================
+        const COLS = 20, ROWS = 14;
+        const START_TICK = 140;    // ms na ruch na starcie
+        const MIN_TICK = 70;       // najszybciej
+        const SPEEDUP = 3;         // o ile ms przyspiesza po każdym punkcie
+
+        const $ = (id) => document.getElementById(id);
+        const stage = $('stage');
+        stage.classList.add('snake-stage');
+        const canvas = $('board-canvas');
+        const ctx = canvas.getContext('2d');
+        const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+
+        let snake = [], dir = 'right', queue = [], food = null, score = 0, ticks = 0, tickMs = START_TICK;
+        let timer = 0, cell = 20;
+
+        function resize() {
+            const r = stage.getBoundingClientRect();
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = Math.round(r.width * dpr);
+            canvas.height = Math.round(r.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            cell = Math.min(r.width / COLS, r.height / ROWS);
+            draw();
+        }
+        new ResizeObserver(resize).observe(stage);
+
+        function reset() {
+            const y = Math.floor(ROWS / 2);
+            snake = [[5, y], [4, y], [3, y]];
+            dir = 'right'; queue = []; score = 0; ticks = 0; tickMs = START_TICK;
+            placeFood();
+            updateHud();
+            draw();
+        }
+
+        function placeFood() {
+            const free = [];
+            for (let x = 0; x < COLS; x++) for (let y = 0; y < ROWS; y++) {
+                if (!snake.some(([sx, sy]) => sx === x && sy === y)) free.push([x, y]);
+            }
+            food = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+        }
+
+        function updateHud() {
+            $('hud-score').textContent = score;
+            $('hud-len').textContent = snake.length;
+            $('hud-speed').textContent = (START_TICK / tickMs).toFixed(1).replace('.', ',') + '×';
+        }
+
+        function draw() {
+            const r = stage.getBoundingClientRect();
+            const ox = (r.width - cell * COLS) / 2, oy = (r.height - cell * ROWS) / 2;
+            ctx.clearRect(0, 0, r.width, r.height);
+            // plansza w szachownicę
+            for (let x = 0; x < COLS; x++) for (let y = 0; y < ROWS; y++) {
+                ctx.fillStyle = (x + y) % 2 ? '#16161a' : '#1a1a1f';
+                ctx.fillRect(ox + x * cell, oy + y * cell, cell, cell);
+            }
+            ctx.strokeStyle = 'rgba(169, 112, 255, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(ox + 1, oy + 1, cell * COLS - 2, cell * ROWS - 2);
+            // jedzenie
+            if (food) {
+                const [fx, fy] = food;
+                ctx.fillStyle = '#f5c542';
+                ctx.shadowColor = 'rgba(245, 197, 66, 0.8)'; ctx.shadowBlur = 12;
+                ctx.beginPath();
+                ctx.arc(ox + (fx + 0.5) * cell, oy + (fy + 0.5) * cell, cell * 0.32, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+            // wąż
+            snake.forEach(([x, y], i) => {
+                const pad = cell * 0.08;
+                ctx.fillStyle = i === 0 ? '#ffffff' : (i % 2 ? '#9147ff' : '#a970ff');
+                ctx.fillRect(ox + x * cell + pad, oy + y * cell + pad, cell - pad * 2, cell - pad * 2);
+            });
+        }
+
+        function turn(d) {
+            if (!Gry.playing || !DIRS[d]) return;
+            const last = queue.length ? queue[queue.length - 1] : dir;
+            const [lx, ly] = DIRS[last], [nx, ny] = DIRS[d];
+            if (lx + nx === 0 && ly + ny === 0) return;   // bez zawracania w miejscu
+            if (d === last || queue.length >= 2) return;
+            queue.push(d);
+        }
+
+        function step() {
+            if (queue.length) dir = queue.shift();
+            const [dx, dy] = DIRS[dir];
+            const [hx, hy] = snake[0];
+            const head = [hx + dx, hy + dy];
+            ticks++;
+            const eating = food && head[0] === food[0] && head[1] === food[1];
+            const body = eating ? snake : snake.slice(0, -1);
+            if (head[0] < 0 || head[0] >= COLS || head[1] < 0 || head[1] >= ROWS ||
+                body.some(([x, y]) => x === head[0] && y === head[1])) {
+                end(false);
+                return;
+            }
+            snake.unshift(head);
+            if (eating) {
+                score++;
+                tickMs = Math.max(MIN_TICK, START_TICK - score * SPEEDUP);
+                placeFood();
+                if (!food) { draw(); end(false); return; }   // cała plansza zapełniona!
+            } else {
+                snake.pop();
+            }
+            updateHud();
+            draw();
+            timer = setTimeout(step, tickMs);
+        }
+
+        // klawiatura
+        const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+        document.addEventListener('keydown', (e) => {
+            if (KEYS[e.code] && Gry.playing) { e.preventDefault(); turn(KEYS[e.code]); }
+        });
+        // przyciski na telefonie
+        document.querySelectorAll('.dpad button').forEach(b =>
+            b.addEventListener('pointerdown', (e) => { e.preventDefault(); turn(b.dataset.dir); }));
+        // przesunięcie palcem po planszy
+        let swipe = null;
+        stage.addEventListener('pointerdown', (e) => { if (Gry.playing) swipe = [e.clientX, e.clientY]; });
+        stage.addEventListener('pointermove', (e) => {
+            if (!swipe) return;
+            const dx = e.clientX - swipe[0], dy = e.clientY - swipe[1];
+            if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+            turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+            swipe = [e.clientX, e.clientY];
+        });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => stage.addEventListener(t, () => { swipe = null; }));
+
+        function end(aborted) {
+            clearTimeout(timer);
+            Gry.finish({
+                score, aborted,
+                details: { ticks },
+                stats: [['Długość węża', String(snake.length)], ['Ruchy', String(ticks)]]
+            });
+        }
+
+        Gry.init({
+            game: 'snake',
+            stage,
+            countdown: true,
+            onPrepare() { clearTimeout(timer); reset(); },
+            onStart() { timer = setTimeout(step, tickMs); },
+            onAbort() { end(true); },
+            onMenu() { reset(); }
+        });
+        reset();
+    </script>
+</body>
+</html>

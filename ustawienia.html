@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ustawienia | Zawlox</title>
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#0e0e10">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 0h52v52L52 64H0V12z' fill='%230e0e10' stroke='%23d4d4d8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23a970ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gry.css">
+    <script src="motyw.js"></script>
+    <style>
+        .settings { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+        .panel .hud-in { padding: 24px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
+        .panel-lead { margin: -4px 0 18px; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+        .sub { margin: 22px 0 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent-2); }
+
+        /* ---------- kolor ---------- */
+        .swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .swatch {
+            --c: 8px;
+            display: grid; justify-items: center; gap: 6px;
+            padding: 12px 6px 10px;
+            background: var(--surface-2);
+            clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
+            font-size: 12px; font-weight: 700; color: var(--muted);
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .swatch:hover { background: #26262c; color: #fff; }
+        .swatch i { width: 30px; height: 30px; border-radius: 50%; background: var(--sw); box-shadow: 0 0 0 3px #0f0f12, 0 0 0 4px transparent; transition: box-shadow 0.15s; }
+        .swatch[aria-pressed="true"] { color: #fff; background: #26262c; }
+        .swatch[aria-pressed="true"] i { box-shadow: 0 0 0 3px #0f0f12, 0 0 0 5px #fff; }
+        .custom { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .custom input[type="color"] { width: 52px; height: 42px; padding: 0; border: 0; background: none; cursor: pointer; }
+        .custom input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        .custom input[type="color"]::-webkit-color-swatch { border: 2px solid var(--line); }
+        .custom input[type="text"] {
+            width: 120px; padding: 10px 12px;
+            font: 600 15px/1 ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: lowercase;
+            color: var(--text); background: var(--surface-2); border: 1px solid var(--line);
+        }
+        .custom input[type="text"]:focus { outline: none; border-color: var(--accent-2); }
+        .custom small { font-size: 12px; color: var(--dim); }
+        .preview { display: grid; gap: 12px; padding: 16px; background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+        .preview-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .preview .kicker { font-size: 12px; }
+        .preview-bar { position: relative; height: 34px; overflow: hidden; background: #18181b; }
+        .preview-bar span { position: absolute; inset: 0 38% 0 0; background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.45), rgba(var(--accent-rgb), 0.15)); }
+        .preview-bar b { position: relative; display: flex; align-items: center; height: 100%; padding: 0 12px; font-size: 13px; }
+        .preview-link { font-weight: 700; color: var(--accent-2); }
+        .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+        .warn { margin: 10px 0 0; font-size: 12.5px; color: var(--gold); }
+
+        /* ---------- uprawnienia ---------- */
+        .people { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+        .person { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 10px; background: var(--surface-2); }
+        .person .avatar { width: 36px; height: 36px; }
+        .person-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .person-meta { font-size: 12px; color: var(--muted); }
+        .badge { padding: 4px 9px; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; background: rgba(var(--accent-rgb), 0.18); color: var(--accent-2); white-space: nowrap; }
+        .person .btn { padding: 8px 12px; font-size: 14px; }
+        .btn-danger { background: rgba(255, 77, 79, 0.14); color: #ff8a8b; box-shadow: inset 0 0 0 1px rgba(255, 77, 79, 0.35); }
+        .btn-danger:hover { background: rgba(255, 77, 79, 0.24); }
+        .search {
+            width: 100%; margin-bottom: 8px; padding: 11px 12px;
+            font: inherit; font-size: 14px; color: var(--text);
+            background: var(--surface-2); border: 1px solid var(--line);
+        }
+        .search:focus { outline: none; border-color: var(--accent-2); }
+        .people.scroll { max-height: 380px; overflow-y: auto; padding-right: 4px; }
+        .empty { padding: 14px 10px; font-size: 13px; color: var(--dim); text-align: center; background: var(--surface-2); }
+
+        /* ---------- bramka ---------- */
+        .gate { max-width: 560px; }
+        .gate .hud-in { display: grid; justify-items: start; gap: 14px; }
+        .gate h2 { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 30px; text-transform: uppercase; }
+        .gate p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
+        .gate code { padding: 2px 6px; background: var(--surface-2); color: var(--text); }
+
+        @media (max-width: 900px) { .settings { grid-template-columns: 1fr; } }
+        @media (max-width: 480px) {
+            .panel .hud-in { padding: 18px; }
+            .swatches { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+            .swatch { font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+        <symbol id="i-arrow-right" viewBox="0 0 448 512"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/></symbol>
+        <symbol id="i-discord" viewBox="0 0 640 512"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></symbol>
+    </defs></svg>
+    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <main>
+        <div class="top">
+            <a class="back" href="./"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Wróć do Zawlox</a>
+            <span id="who" class="back" style="cursor: default;"></span>
+        </div>
+
+        <div class="title-row">
+            <div>
+                <p class="kicker">Panel właściciela</p>
+                <h1>Ustawienia</h1>
+            </div>
+            <p class="rules">Zmiany zapisują się w bazie i działają od razu dla wszystkich odwiedzających. Tę stronę może zmieniać <b>tylko właściciel</b> – pilnuje tego baza danych.</p>
+        </div>
+
+        <!-- komunikat zamiast paneli (ładowanie / logowanie / brak dostępu) -->
+        <div id="gate" class="hud panel gate">
+            <div class="hud-in">
+                <h2 id="gate-title">Sprawdzam dostęp…</h2>
+                <p id="gate-text"></p>
+                <div id="gate-actions"></div>
+            </div>
+        </div>
+
+        <div id="settings" class="settings" hidden>
+            <!-- ===================== KOLOR ===================== -->
+            <section class="hud panel" aria-labelledby="color-title">
+                <div class="hud-in">
+                    <h2 id="color-title" class="panel-title">Kolor strony</h2>
+                    <p class="panel-lead">Kolor akcentu: przyciski, podkreślenia, poświata w tle i cząsteczki. Działa na stronie głównej i w minigierkach. Kliknij, żeby zobaczyć podgląd – zmiana trafi do wszystkich dopiero po „Zapisz”.</p>
+
+                    <div id="swatches" class="swatches" role="group" aria-label="Gotowe kolory"></div>
+
+                    <h3 class="sub">Własny kolor</h3>
+                    <div class="custom">
+                        <input id="color-picker" type="color" value="#9147ff" aria-label="Wybierz własny kolor">
+                        <input id="color-hex" type="text" value="#9147ff" maxlength="7" spellcheck="false" aria-label="Kod koloru">
+                        <small>np. #ff4655</small>
+                    </div>
+
+                    <h3 class="sub">Podgląd</h3>
+                    <div class="preview">
+                        <p class="kicker" style="margin:0">Najnowsze · Na żywo</p>
+                        <div class="preview-row">
+                            <span class="btn btn-primary btn-sm">Oglądaj stream</span>
+                            <a class="preview-link" href="#" onclick="return false">Przykładowy link</a>
+                        </div>
+                        <div class="preview-bar"><span></span><b>Wyniki ankiety · 62%</b></div>
+                    </div>
+                    <p id="color-warn" class="warn" hidden>Bardzo jasny kolor – na przyciskach tekst zmieni się na ciemny, żeby był czytelny.</p>
+
+                    <div class="actions">
+                        <button id="color-save" type="button" class="btn btn-primary" disabled>Zapisz kolor</button>
+                        <button id="color-reset" type="button" class="btn btn-ghost">Przywróć fiolet</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===================== UPRAWNIENIA ===================== -->
+            <section class="hud panel" aria-labelledby="perm-title">
+                <div class="hud-in">
+                    <h2 id="perm-title" class="panel-title">Uprawnienia do ankiet</h2>
+                    <p class="panel-lead">Administrator może tworzyć ankiety oraz kończyć i usuwać <b>swoje</b> ankiety. Nie ma dostępu do tej strony i nie może nadawać uprawnień innym.</p>
+
+                    <h3 class="sub" style="margin-top: 0;">Mają uprawnienia</h3>
+                    <ul id="admins" class="people"></ul>
+
+                    <h3 class="sub">Dodaj osobę</h3>
+                    <input id="search" class="search" type="search" placeholder="Szukaj po nicku…" autocomplete="off">
+                    <ul id="users" class="people scroll"></ul>
+                    <p class="panel-lead" style="margin: 10px 0 0; font-size: 12.5px;">Na liście są osoby, które przynajmniej raz zalogowały się na stronie przez Discord (np. w minigierkach). Jeśli kogoś brakuje – poproś, żeby się zalogował.</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const cfg = window.ZAWLOX_CONFIG || {};
+        const Motyw = window.ZawloxMotyw;
+        const sb = (cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase)
+            ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey) : null;
+
+        const PRESETS = [
+            ['Fiolet', '#9147ff'], ['Niebieski', '#3b82f6'], ['Turkus', '#14b8a6'], ['Zielony', '#22c55e'],
+            ['Żółty', '#eab308'], ['Pomarańcz', '#f97316'], ['Czerwony', '#ef4444'], ['Różowy', '#ec4899']
+        ];
+
+        let toastTimer;
+        function toast(msg, isError) {
+            const t = $('toast');
+            t.textContent = msg;
+            t.classList.toggle('error', !!isError);
+            t.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+        }
+
+        function gate(title, text, actionEl) {
+            $('settings').hidden = true;
+            $('gate').hidden = false;
+            $('gate-title').textContent = title;
+            $('gate-text').innerHTML = text || '';
+            const a = $('gate-actions'); a.innerHTML = '';
+            if (actionEl) a.appendChild(actionEl);
+        }
+
+        function displayName(u) {
+            const m = (u && u.user_metadata) || {};
+            return (m.custom_claims && m.custom_claims.global_name) || m.full_name || m.name || 'Gracz';
+        }
+
+        function avatarEl(url, name) {
+            if (url) {
+                const img = document.createElement('img');
+                img.className = 'avatar'; img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+                img.src = url;
+                return img;
+            }
+            const d = document.createElement('span');
+            d.className = 'avatar avatar-fallback';
+            const m = String(name || '').match(/[\p{L}\p{N}]/u);
+            d.textContent = m ? m[0].toUpperCase() : '?';
+            return d;
+        }
+
+        const ago = new Intl.RelativeTimeFormat('pl', { numeric: 'auto' });
+        function lastSeen(iso) {
+            if (!iso) return 'nie logował(a) się';
+            const s = Math.round((Date.parse(iso) - Date.now()) / 1000);
+            for (const [u, sec] of [['day', 86400], ['hour', 3600], ['minute', 60]]) if (Math.abs(s) >= sec) return 'logowanie ' + ago.format(Math.round(s / sec), u);
+            return 'logowanie przed chwilą';
+        }
+
+        // =====================================================================
+        // KOLOR
+        // =====================================================================
+        let saved = Motyw.DEFAULT, current = Motyw.DEFAULT;
+
+        function lum(hex) {
+            const a = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+                .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+            return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+        }
+
+        function preview(c) {
+            c = Motyw.clean(c);
+            if (!c) return;
+            current = Motyw.apply(c);
+            $('color-picker').value = current;
+            if (document.activeElement !== $('color-hex')) $('color-hex').value = current;
+            $('swatches').querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c === current)));
+            $('color-save').disabled = current === saved;
+            $('color-warn').hidden = lum(current) <= 0.42;
+        }
+
+        function buildSwatches() {
+            const wrap = $('swatches');
+            for (const [name, c] of PRESETS) {
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'swatch'; b.dataset.c = c;
+                b.style.setProperty('--sw', c);
+                b.innerHTML = '<i></i><span></span>';
+                b.querySelector('span').textContent = name;
+                b.addEventListener('click', () => preview(c));
+                wrap.appendChild(b);
+            }
+        }
+
+        $('color-picker').addEventListener('input', (e) => preview(e.target.value));
+        $('color-hex').addEventListener('input', (e) => {
+            let v = e.target.value.trim();
+            if (v && v[0] !== '#') v = '#' + v;
+            if (/^#[0-9a-f]{6}$/i.test(v)) preview(v);
+        });
+        $('color-hex').addEventListener('blur', () => { $('color-hex').value = current; });
+        $('color-reset').addEventListener('click', () => preview(Motyw.DEFAULT));
+        $('color-save').addEventListener('click', async () => {
+            const btn = $('color-save');
+            btn.disabled = true;
+            const { data, error } = await sb.from('site_settings').update({ accent: current, updated_at: new Date().toISOString() }).eq('id', 1).select();
+            if (error || !data || !data.length) { toast('Nie udało się zapisać koloru', true); btn.disabled = false; return; }
+            saved = current;
+            Motyw.save(current);
+            toast('Kolor zapisany – działa już na całej stronie');
+        });
+        // wyjście bez zapisu nie zostawia podglądu w pamięci przeglądarki (zapis robi tylko "Zapisz")
+
+        async function loadColor() {
+            const { data } = await sb.from('site_settings').select('accent').eq('id', 1).maybeSingle();
+            saved = Motyw.clean(data && data.accent) || Motyw.DEFAULT;
+            preview(saved);
+        }
+
+        // =====================================================================
+        // UPRAWNIENIA
+        // =====================================================================
+        let people = [];
+
+        function personRow(p, btn) {
+            const li = document.createElement('li');
+            li.className = 'person';
+            const info = document.createElement('div');
+            info.style.minWidth = '0';
+            info.innerHTML = '<div class="person-name"></div><div class="person-meta"></div>';
+            info.querySelector('.person-name').textContent = p.name;
+            info.querySelector('.person-meta').textContent = lastSeen(p.last_sign_in_at);
+            li.append(avatarEl(p.avatar_url, p.name), info, btn);
+            return li;
+        }
+
+        function actionBtn(label, cls, onClick) {
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn ' + cls; b.textContent = label;
+            b.addEventListener('click', async () => { b.disabled = true; await onClick(b); b.disabled = false; });
+            return b;
+        }
+
+        async function setAdmin(p, on) {
+            const { error } = await sb.rpc('set_poll_admin', { p_user: p.user_id, p_on: on });
+            if (error) { toast('Nie udało się zmienić uprawnień', true); return; }
+            toast(on ? `${p.name} może teraz tworzyć ankiety` : `Odebrano uprawnienia: ${p.name}`);
+            await loadPeople();
+        }
+
+        function renderPeople() {
+            const admins = $('admins'), users = $('users');
+            admins.innerHTML = ''; users.innerHTML = '';
+            for (const p of people.filter(x => x.role)) {
+                let right;
+                if (p.role === 'owner') {
+                    right = document.createElement('span');
+                    right.className = 'badge'; right.textContent = 'Właściciel';
+                } else {
+                    let armed = false, t;
+                    right = actionBtn('Odbierz', 'btn-danger', async (b) => {
+                        if (!armed) {
+                            armed = true; b.textContent = 'Na pewno?';
+                            t = setTimeout(() => { armed = false; b.textContent = 'Odbierz'; }, 3000);
+                            return;
+                        }
+                        clearTimeout(t);
+                        await setAdmin(p, false);
+                    });
+                }
+                admins.appendChild(personRow(p, right));
+            }
+            const q = $('search').value.trim().toLowerCase();
+            const rest = people.filter(x => !x.role && (!q || x.name.toLowerCase().includes(q)));
+            for (const p of rest) users.appendChild(personRow(p, actionBtn('Nadaj', 'btn-primary', () => setAdmin(p, true))));
+            if (!rest.length) users.innerHTML = `<li class="empty">${q ? 'Nikogo takiego nie ma na liście.' : 'Nikt poza administratorami jeszcze się nie logował.'}</li>`;
+        }
+
+        async function loadPeople() {
+            const { data, error } = await sb.rpc('list_users');
+            if (error) { toast('Nie udało się wczytać listy osób', true); return; }
+            people = (data || []).map(p => ({ ...p, name: p.name || 'Gracz' }));
+            renderPeople();
+        }
+        $('search').addEventListener('input', renderPeople);
+
+        // =====================================================================
+        // START
+        // =====================================================================
+        async function login() {
+            const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } });
+            if (error) toast('Nie udało się zalogować', true);
+        }
+
+        async function start(session) {
+            const user = session ? session.user : null;
+            $('who').textContent = user ? 'Zalogowano: ' + displayName(user) : '';
+            if (!user) {
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'btn btn-discord';
+                b.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg> Zaloguj przez Discord';
+                b.addEventListener('click', login);
+                gate('Zaloguj się', 'Ustawienia są dostępne dla właściciela strony po zalogowaniu przez Discord.', b);
+                return;
+            }
+            const { data, error } = await sb.rpc('is_owner');
+            if (error) {
+                gate('Brakuje konfiguracji bazy', 'Uruchom w Supabase plik <code>supabase-ustawienia.sql</code> (SQL Editor → New query → Run), a potem odśwież tę stronę.');
+                return;
+            }
+            if (data !== true) {
+                const a = document.createElement('a');
+                a.className = 'btn btn-ghost'; a.href = './'; a.textContent = 'Wróć na stronę';
+                gate('Brak dostępu', 'Te ustawienia może zmieniać tylko właściciel strony.', a);
+                return;
+            }
+            $('gate').hidden = true;
+            $('settings').hidden = false;
+            await Promise.all([loadColor(), loadPeople()]);
+        }
+
+        if (!sb) {
+            gate('Brak połączenia z bazą', 'Nie udało się wczytać konfiguracji (config.js) albo biblioteki logowania.');
+        } else {
+            buildSwatches();
+            let lastId;
+            sb.auth.getSession().then(({ data }) => { lastId = data.session && data.session.user.id; start(data.session); });
+            sb.auth.onAuthStateChange((_e, session) => {
+                const id = session && session.user.id;
+                if (id !== lastId) { lastId = id; start(session); }
+            });
+        }
+    </script>
+</body>
+</html>

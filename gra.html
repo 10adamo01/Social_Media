@@ -16,6 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="gry.css">
+    <script src="motyw.js"></script>
     <style>
         .stage.is-playing {
             cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg stroke='%2300ff9c' stroke-width='2'%3E%3Cpath d='M16 2v9M16 21v9M2 16h9M21 16h9'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='1.6' fill='%2300ff9c'/%3E%3C/svg%3E") 16 16, crosshair;
@@ -26,7 +27,7 @@
             margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
             border-radius: 50%;
             background: radial-gradient(circle, #fff 0 12%, var(--accent) 12% 34%, #fff 34% 52%, var(--accent) 52% 72%, #fff 72% 100%);
-            box-shadow: 0 0 0 3px rgba(14, 14, 16, 0.6), 0 0 22px rgba(169, 112, 255, 0.55);
+            box-shadow: 0 0 0 3px rgba(14, 14, 16, 0.6), 0 0 22px rgba(var(--accent-2-rgb), 0.55);
             animation: pop-in 0.16s ease-out;
         }
         @keyframes pop-in { from { transform: scale(0.4); opacity: 0; } }

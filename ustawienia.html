@@ -286,6 +286,7 @@
         function lastSeen(iso) {
             if (!iso) return 'nie logował(a) się';
             const s = Math.round((Date.parse(iso) - Date.now()) / 1000);
+            if (s > 0) return 'logowanie przed chwilą';
             for (const [u, sec] of [['day', 86400], ['hour', 3600], ['minute', 60]]) if (Math.abs(s) >= sec) return 'logowanie ' + ago.format(Math.round(s / sec), u);
             return 'logowanie przed chwilą';
         }

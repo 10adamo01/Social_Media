@@ -262,6 +262,7 @@
 
         function ago(iso) {
             const s = Math.round((Date.parse(iso) - Date.now()) / 1000);
+            if (s > 0) return 'przed chwilą';
             for (const [u, sec] of [['day', 86400], ['hour', 3600], ['minute', 60]]) if (Math.abs(s) >= sec) return rtf.format(Math.round(s / sec), u);
             return 'przed chwilą';
         }
@@ -332,8 +333,9 @@
 
         // ---------- rekordy w grach ----------
         async function renderRecords(user) {
-            const box = $('records'); box.innerHTML = '';
+            const box = $('records');
             const { data } = await sb.from('leaderboard').select('game, score').eq('user_id', user.id);
+            box.innerHTML = '';
             const mine = new Map((data || []).map(r => [r.game, r.score]));
             for (const [id, g] of Object.entries(GRY)) {
                 const row = document.createElement('div');
@@ -358,8 +360,9 @@
 
         // ---------- historia (minuty oglądania łączymy w jeden wpis) ----------
         async function renderHistory() {
-            const ul = $('history'); ul.innerHTML = '';
+            const ul = $('history');
             const { data } = await sb.from('points_log').select('amount, reason, ref, created_at').order('created_at', { ascending: false }).limit(300);
+            ul.innerHTML = '';
             const groups = [];
             for (const r of data || []) {
                 const g = groups[groups.length - 1];
@@ -386,8 +389,9 @@
         }
 
         async function renderTop() {
-            const box = $('top'); box.innerHTML = '';
+            const box = $('top');
             const { data } = await sb.rpc('points_top', { p_limit: 10 });
+            box.innerHTML = '';
             if (!data || !data.length) { box.innerHTML = '<div class="empty">Ranking jest jeszcze pusty.</div>'; return; }
             data.forEach((r, i) => {
                 const row = document.createElement('div');
@@ -419,7 +423,11 @@
             if (error) gate('Nie udało się zalogować', 'Spróbuj ponownie za chwilę.');
         }
 
+        let startedFor;
         async function start(session) {
+            const key = session ? session.user.id : 'anon';
+            if (key === startedFor) return;
+            startedFor = key;
             const user = session ? session.user : null;
             if (!user) {
                 const b = document.createElement('button');

@@ -37,7 +37,7 @@
             document.documentElement.classList.add('js-reveal');
         }
     </script>
-    <script src="motyw.js"></script>
+    <script src="motyw.js?v=20261016b"></script>
     <style>
         /* =========================================================
            KOLORY I ZMIENNE – styl paneli z Twitcha
@@ -1469,9 +1469,9 @@
     </div>
 
     <!-- Ustawienia rankingu i lista minigierek (wspólne z grami) -->
-    <script src="config.js"></script>
-    <script src="gry-lista.js"></script>
-    <script src="punkty.js"></script>
+    <script src="config.js?v=20261016b"></script>
+    <script src="gry-lista.js?v=20261016b"></script>
+    <script src="punkty.js?v=20261016b"></script>
     <!-- Biblioteka Supabase: logowanie Discord + głosowanie -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script>
@@ -2954,6 +2954,7 @@
             // ---------- pasek rang ----------
             function renderRanks() {
                 const ol = $('pts-ranks'); ol.innerHTML = '';
+                if (!P.RANKS || !P.rankOf) { ol.previousElementSibling.hidden = true; return; }   // stary punkty.js w pamięci przeglądarki
                 const mine = total !== null && role !== 'owner' ? P.rankOf(P.level(total).level) : null;
                 P.RANKS.forEach(r => {
                     const li = document.createElement('li');
@@ -3048,8 +3049,9 @@
                     const name = document.createElement('span'); name.className = 'home-name';
                     name.textContent = r.name;
                     const lvl = document.createElement('span'); lvl.className = 'pts-lvl';
-                    const rk = P.rankOf(P.level(r.points).level);
-                    lvl.textContent = `${rk.icon} ${rk.name}`; lvl.style.color = rk.color;
+                    const rk = P.rankOf ? P.rankOf(P.level(r.points).level) : null;
+                    lvl.textContent = rk ? `${rk.icon} ${rk.name}` : `Poziom ${P.level(r.points).level}`;
+                    if (rk) lvl.style.color = rk.color;
                     name.appendChild(lvl);
                     const score = document.createElement('span'); score.className = 'home-score';
                     score.textContent = nf.format(r.points);

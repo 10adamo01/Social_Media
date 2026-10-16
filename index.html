@@ -575,6 +575,40 @@
         /* =========================================================
            GŁOSOWANIE
            ========================================================= */
+        /* Discord na żywo */
+        .dc { --cut: 22px; margin-top: 2px; }
+        .dc > .hud-in { padding: 26px 28px 28px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
+        .dc-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+        .dc-name { margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 30px; line-height: 1; text-transform: uppercase; color: #fff; }
+        .dc-count { margin: 6px 0 0; display: flex; align-items: center; flex-wrap: wrap; font-size: 14px; font-weight: 600; color: var(--muted); }
+        .dc-count b { color: #fff; }
+        .dc-pulse { width: 9px; height: 9px; margin-right: 8px; border-radius: 50%; background: #23a55a; box-shadow: 0 0 0 0 rgba(35, 165, 90, 0.6); animation: dc-pulse 2s infinite; }
+        @keyframes dc-pulse { 70% { box-shadow: 0 0 0 8px rgba(35, 165, 90, 0); } 100% { box-shadow: 0 0 0 0 rgba(35, 165, 90, 0); } }
+        .dc-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px; margin-top: 22px; }
+        .dc-sub { margin: 0 0 12px; font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-2); }
+        .dc-voice { display: grid; gap: 10px; }
+        .dc-chan { padding: 12px 14px; background: var(--surface-2); box-shadow: inset 3px 0 0 #23a55a; }
+        .dc-chan-name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-weight: 700; font-size: 14px; color: #fff; }
+        .dc-chan-name svg { width: 16px; height: 16px; fill: var(--muted); flex-shrink: 0; }
+        .dc-chan ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+        .dc-chan li { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; min-width: 0; }
+        .dc-chan li img { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; background: var(--surface); }
+        .dc-chan li .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dc-chan li .mic { margin-left: auto; width: 15px; height: 15px; fill: var(--dim); flex-shrink: 0; }
+        .dc-empty { margin: 0; padding: 14px; background: var(--surface-2); font-size: 14px; color: var(--muted); }
+        .dc-members { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+        .dc-member { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 10px 7px 7px; background: var(--surface-2); transition: background-color 0.2s; }
+        .dc-member:hover { background: #26262c; }
+        .dc-av { position: relative; flex-shrink: 0; width: 32px; height: 32px; }
+        .dc-av img { width: 100%; height: 100%; border-radius: 50%; background: var(--surface); }
+        .dc-av::after { content: ''; position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%; border: 2.5px solid var(--surface-2); background: var(--st, #23a55a); }
+        .dc-member[data-st="idle"] { --st: #f0b232; }
+        .dc-member[data-st="dnd"] { --st: #f23f43; }
+        .dc-who { min-width: 0; display: grid; }
+        .dc-who .nm { font-size: 14px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dc-who .gm { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dc-more { grid-column: 1 / -1; padding: 8px 10px; font-size: 13px; font-weight: 600; color: var(--muted); text-align: center; background: var(--surface-2); }
+
         .poll { --cut: 22px; margin-top: 2px; }
         .poll > .hud-in { padding: 28px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
         .poll-list { display: grid; gap: 26px; }
@@ -890,6 +924,8 @@
             .contact > .hud-in { grid-template-columns: 1fr; padding: 22px; }
             .game-teaser > .hud-in { grid-template-columns: 1fr; padding: 22px; }
             .poll > .hud-in { padding: 20px; }
+            .dc > .hud-in { padding: 20px; }
+            .dc-grid { grid-template-columns: 1fr; gap: 22px; }
             .admin-poll { grid-template-columns: 1fr 1fr; }
             .admin-poll .q { grid-column: 1 / -1; white-space: normal; }
             .hero-body { padding: 22px; }
@@ -1199,6 +1235,39 @@
                 </div>
 
             </nav>
+        </section>
+
+        <!-- ===================== DISCORD NA ŻYWO (widżet serwera) ===================== -->
+        <section id="discord" aria-labelledby="dc-title" hidden>
+            <div class="hud is-silver plate" data-reveal style="max-width: 420px;">
+                <div class="hud-in">
+                    <span class="plate-icon"><svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg></span>
+                    <h2 id="dc-title" class="plate-title"><span class="tx">Na Discordzie</span></h2>
+                </div>
+            </div>
+            <div class="hud dc" data-reveal style="--d: .1s">
+                <div class="hud-in">
+                    <div class="dc-head">
+                        <div class="dc-server">
+                            <p id="dc-name" class="dc-name">Giga Kozaki</p>
+                            <p class="dc-count"><span class="dc-pulse" aria-hidden="true"></span><b id="dc-online">0</b>&nbsp;online teraz<span id="dc-voice-count"></span></p>
+                        </div>
+                        <a class="btn btn-discord" href="https://discord.gg/GgkJnQAcsa" target="_blank" rel="noopener noreferrer">
+                            <svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg> Dołącz do serwera
+                        </a>
+                    </div>
+                    <div class="dc-grid">
+                        <div class="dc-col">
+                            <h3 class="dc-sub">Na kanałach głosowych</h3>
+                            <div id="dc-voice" class="dc-voice"></div>
+                        </div>
+                        <div class="dc-col">
+                            <h3 class="dc-sub">Online teraz</h3>
+                            <ul id="dc-members" class="dc-members"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- ===================== NAJNOWSZE ===================== -->
@@ -1615,6 +1684,107 @@
         }
         checkDiscord();
         setInterval(() => { if (!document.hidden) checkDiscord(); }, STATUS_REFRESH_MS);
+
+        // =====================================================================
+        // DISCORD NA ŻYWO – widżet serwera (kto jest online, kto na głosowych)
+        // Działa, dopóki w ustawieniach serwera jest włączony "Widget serwera".
+        // =====================================================================
+        (function discordWidget() {
+            const GUILD_ID = '676435359390892032';
+            const MAX_MEMBERS = 16;
+            const section = $('discord');
+            const ST_ORDER = { online: 0, idle: 1, dnd: 2 };
+            const SPEAKER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>';
+            const MUTED = '<svg class="mic" viewBox="0 0 24 24" aria-label="wyciszony"><path d="M19 11h-1.7c0 .7-.2 1.4-.4 2l1.2 1.2c.6-.9.9-2 .9-3.2zm-4 .2V5a3 3 0 0 0-6 0v.2l6 6zM4.3 3 3 4.3l6 6V11a3 3 0 0 0 4.4 2.6l1.7 1.7A5 5 0 0 1 7 11H5.3a6.7 6.7 0 0 0 5.7 6.7V21h2v-3.3a6.6 6.6 0 0 0 2.6-.9l4.1 4.2 1.3-1.3L4.3 3z"/></svg>';
+            let lastKey = '';
+
+            function avatar(m) {
+                const img = document.createElement('img');
+                img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+                if (m.avatar_url) img.src = m.avatar_url;
+                return img;
+            }
+
+            function render(d) {
+                const members = Array.isArray(d.members) ? d.members : [];
+                const channels = Array.isArray(d.channels) ? d.channels.slice().sort((a, b) => a.position - b.position) : [];
+                $('dc-name').textContent = d.name || 'Discord';
+                $('dc-online').textContent = nf.format(typeof d.presence_count === 'number' ? d.presence_count : members.length);
+
+                // --- kanały głosowe ---
+                const inVoice = members.filter(m => m.channel_id);
+                $('dc-voice-count').textContent = inVoice.length ? ` · ${inVoice.length} na głosowych` : '';
+                const voice = $('dc-voice');
+                voice.innerHTML = '';
+                const busy = channels.filter(c => inVoice.some(m => m.channel_id === c.id));
+                if (!busy.length) {
+                    voice.innerHTML = '<p class="dc-empty">Nikt teraz nie gada – wbij pierwszy i zawołaj ekipę!</p>';
+                }
+                for (const c of busy) {
+                    const box = document.createElement('div');
+                    box.className = 'dc-chan';
+                    box.innerHTML = `<p class="dc-chan-name">${SPEAKER}<span></span></p><ul></ul>`;
+                    box.querySelector('.dc-chan-name span').textContent = c.name;
+                    const ul = box.querySelector('ul');
+                    for (const m of inVoice.filter(x => x.channel_id === c.id)) {
+                        const li = document.createElement('li');
+                        const nm = document.createElement('span');
+                        nm.className = 'nm'; nm.textContent = m.username;
+                        li.append(avatar(m), nm);
+                        if (m.self_mute || m.mute || m.self_deaf || m.deaf) li.insertAdjacentHTML('beforeend', MUTED);
+                        ul.appendChild(li);
+                    }
+                    voice.appendChild(box);
+                }
+
+                // --- online ---
+                const list = $('dc-members');
+                list.innerHTML = '';
+                const sorted = members.slice().sort((a, b) =>
+                    (!!b.channel_id - !!a.channel_id) || (!!b.game - !!a.game) ||
+                    ((ST_ORDER[a.status] ?? 3) - (ST_ORDER[b.status] ?? 3)) ||
+                    String(a.username).localeCompare(String(b.username), 'pl'));
+                for (const m of sorted.slice(0, MAX_MEMBERS)) {
+                    const li = document.createElement('li');
+                    li.className = 'dc-member';
+                    li.dataset.st = m.status || 'online';
+                    const av = document.createElement('span');
+                    av.className = 'dc-av'; av.appendChild(avatar(m));
+                    const who = document.createElement('span');
+                    who.className = 'dc-who';
+                    who.innerHTML = '<span class="nm"></span><span class="gm"></span>';
+                    who.querySelector('.nm').textContent = m.username;
+                    const gm = who.querySelector('.gm');
+                    if (m.game && m.game.name) gm.textContent = 'Gra w ' + m.game.name;
+                    else if (m.channel_id) gm.textContent = 'Na kanale głosowym';
+                    else gm.remove();
+                    li.append(av, who);
+                    list.appendChild(li);
+                }
+                if (members.length > MAX_MEMBERS) {
+                    const more = document.createElement('li');
+                    more.className = 'dc-more';
+                    more.textContent = `+ ${members.length - MAX_MEMBERS} więcej osób online`;
+                    list.appendChild(more);
+                }
+                if (!members.length) list.innerHTML = '<li class="dc-more">Wszyscy śpią… na razie 😴</li>';
+            }
+
+            async function load() {
+                try {
+                    const r = await fetch(`https://discord.com/api/guilds/${GUILD_ID}/widget.json`, { signal: timeoutSignal(8000) });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    const d = await r.json();
+                    const key = JSON.stringify([d.presence_count, (d.members || []).map(m => [m.id, m.status, m.channel_id, m.game && m.game.name, m.self_mute])]);
+                    if (key !== lastKey) { lastKey = key; render(d); }
+                    if (section.hidden) { section.hidden = false; revealScan(); }
+                } catch (e) {
+                    if (!lastKey) section.hidden = true;   // widżet wyłączony – sekcji po prostu nie ma
+                }
+            }
+            load();
+            setInterval(() => { if (!document.hidden) load(); }, STATUS_REFRESH_MS);
+        })();
 
         let heroKey = '';
         function renderHero() {

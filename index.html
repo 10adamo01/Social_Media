@@ -235,6 +235,38 @@
         .topnav-links a:hover, .topnav-links a.is-active { color: #fff; }
         .topnav-links a:hover::after, .topnav-links a.is-active::after { transform: scaleX(1); transform-origin: left; }
         .topnav .icon-btn { flex-shrink: 0; }
+        /* Logowanie Discord w menu */
+        .nav-auth { position: relative; flex-shrink: 0; margin-right: -12px; }
+        .nav-auth[hidden] { display: none; }
+        .nav-login { height: 46px; padding: 0 16px; font-size: 15px; gap: 8px; }
+        .nav-login .ic { width: 20px; height: 20px; }
+        .nav-login:hover { transform: none; }
+        .btn-discord { background: #5865f2; color: #fff; }
+        .btn-discord:hover { background: #6d78f5; }
+        .nav-user { --cut: 10px; display: block; height: 46px; max-width: 200px; }
+        .nav-user[hidden] { display: none; }
+        .nav-user .hud-in { display: flex; align-items: center; gap: 9px; padding: 0 14px 0 7px; background: var(--surface); transition: background-color 0.2s; }
+        .nav-user:hover .hud-in, .nav-user[aria-expanded="true"] .hud-in { background: var(--surface-2); }
+        .nav-user img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--surface-2); flex-shrink: 0; }
+        .nav-user img:not([src]) { visibility: hidden; }
+        .nav-name {
+            font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase;
+            color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .nav-menu { --cut: 12px; position: absolute; top: calc(100% + 10px); right: 0; width: 230px; animation: menu-in 0.2s ease-out; }
+        .nav-menu[hidden] { display: none; }
+        @keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } }
+        .nav-menu .hud-in { display: grid; padding: 8px; background: #121215; }
+        .nav-menu-who { margin: 0 0 6px; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+        .nav-menu-who b { display: block; margin-top: 2px; font-size: 15px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .nav-menu a, .nav-menu button {
+            display: block; width: 100%; padding: 10px; text-align: left;
+            font: inherit; font-size: 14px; font-weight: 600; color: var(--text);
+            background: none; border: 0; cursor: pointer; transition: background-color 0.15s, color 0.15s;
+        }
+        .nav-menu a[hidden] { display: none; }
+        .nav-menu a:hover, .nav-menu button:hover { background: var(--surface-2); color: #fff; }
+        .nav-menu button { color: #f87171; }
         section[id], header[id] { scroll-margin-top: 80px; }
         .icon-btn { --cut: 10px; display: block; width: 46px; height: 46px; }
         .icon-btn .hud-in { display: grid; place-items: center; background: var(--surface); transition: background-color 0.2s; }
@@ -870,6 +902,11 @@
             .topnav-logo { font-size: 22px; }
             .topnav-links a { padding: 8px 8px; font-size: 14px; }
             .topnav-links a::after { left: 8px; right: 8px; }
+            .nav-auth { margin-right: -4px; }
+            .nav-login { width: 46px; padding: 0; }
+            .nav-login span, .nav-name { display: none; }
+            .nav-user .hud-in { padding: 0 8px; }
+            .nav-menu { right: -54px; }
             .topnav-links {
                 -webkit-mask-image: linear-gradient(90deg, #000 80%, transparent);
                 mask-image: linear-gradient(90deg, #000 80%, transparent);
@@ -940,6 +977,22 @@
                 <a href="#latest">Najnowsze</a>
                 <a href="#minigierki">Minigierki</a>
                 <a href="#kontakt">Kontakt</a>
+            </div>
+            <div id="nav-auth" class="nav-auth" hidden>
+                <button id="nav-login" type="button" class="btn btn-discord nav-login" aria-label="Zaloguj się przez Discord">
+                    <svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg><span>Zaloguj</span>
+                </button>
+                <button id="nav-user" type="button" class="hud nav-user" aria-haspopup="true" aria-expanded="false" hidden>
+                    <span class="hud-in"><img id="nav-avatar" alt="" referrerpolicy="no-referrer"><span id="nav-name" class="nav-name"></span></span>
+                </button>
+                <div id="nav-menu" class="hud nav-menu" hidden>
+                    <div class="hud-in">
+                        <p class="nav-menu-who">Zalogowano jako<b id="nav-menu-name"></b></p>
+                        <a href="#glosowanie" id="nav-menu-poll" hidden>Głosowanie</a>
+                        <a href="minigierki.html">Minigierki i rankingi</a>
+                        <button id="nav-logout" type="button">Wyloguj się</button>
+                    </div>
+                </div>
             </div>
             <button id="share-btn" type="button" class="hud icon-btn" aria-label="Udostępnij profil">
                 <span class="hud-in"><svg class="ic" aria-hidden="true"><use href="#i-share-nodes"/></svg></span>
@@ -2309,8 +2362,8 @@
             }
             const votesWord = (n) => n === 1 ? 'głos' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'głosy' : 'głosów';
 
-            async function login() {
-                try { sessionStorage.setItem('zawlox-scroll-poll', '1'); } catch (e) {}
+            async function login(fromPoll = true) {
+                if (fromPoll === true) { try { sessionStorage.setItem('zawlox-scroll-poll', '1'); } catch (e) {} }
                 const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } });
                 if (error) showToast('Nie udało się zalogować', true);
             }
@@ -2352,6 +2405,8 @@
                 const show = vis.length > 0 || isAdmin;
                 section.hidden = !show;
                 $('nav-poll').hidden = !show;
+                $('nav-menu-poll').hidden = !show;
+                renderNavAuth();
                 renderPolls();
                 renderFoot();
                 renderAdmin();
@@ -2412,7 +2467,7 @@
                     const b = document.createElement('button');
                     b.type = 'button'; b.className = 'btn btn-discord btn-xs';
                     b.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg> Zaloguj przez Discord';
-                    b.addEventListener('click', login);
+                    b.addEventListener('click', () => login(true));
                     foot.appendChild(b);
                     return;
                 }
@@ -2542,10 +2597,42 @@
                 }
             }
 
+            // ---------- logowanie w górnym menu ----------
+            const navAuth = $('nav-auth'), navUser = $('nav-user'), navMenu = $('nav-menu');
+            function setMenu(open) {
+                navMenu.hidden = !open;
+                navUser.setAttribute('aria-expanded', String(open));
+            }
+            function renderNavAuth() {
+                navAuth.hidden = false;
+                $('nav-login').hidden = !!user;
+                navUser.hidden = !user;
+                if (!user) { setMenu(false); return; }
+                const name = displayName(user);
+                const av = user.user_metadata && user.user_metadata.avatar_url;
+                const img = $('nav-avatar');
+                if (av) img.src = av; else img.removeAttribute('src');
+                $('nav-name').textContent = name;
+                $('nav-menu-name').textContent = name;
+                navUser.setAttribute('aria-label', 'Konto: ' + name);
+            }
+            $('nav-login').addEventListener('click', () => login(false));
+            navUser.addEventListener('click', (e) => { e.stopPropagation(); setMenu(navMenu.hidden); });
+            navMenu.addEventListener('click', (e) => { if (e.target.closest('a')) setMenu(false); });
+            document.addEventListener('click', (e) => { if (!navMenu.hidden && !navAuth.contains(e.target)) setMenu(false); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !navMenu.hidden) { setMenu(false); navUser.focus(); } });
+            addEventListener('scroll', () => { if (!navMenu.hidden && $('topnav').classList.contains('is-hidden')) setMenu(false); }, { passive: true });
+            $('nav-logout').addEventListener('click', async () => {
+                setMenu(false);
+                await sb.auth.signOut();
+                showToast('Wylogowano');
+            });
+
             // ---------- start ----------
             (async () => {
                 const { data } = await sb.auth.getSession();
                 user = data.session ? data.session.user : null;
+                renderNavAuth();
                 await checkAdmin();
                 await loadPolls();
                 let scroll = false;
@@ -2554,6 +2641,7 @@
                 sb.auth.onAuthStateChange(async (_e, session) => {
                     const was = user && user.id;
                     user = session ? session.user : null;
+                    renderNavAuth();
                     if ((user && user.id) !== was) { await checkAdmin(); await loadPolls(); }
                 });
                 // wyniki odświeżają się same, gdy sekcja jest na ekranie

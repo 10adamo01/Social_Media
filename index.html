@@ -579,6 +579,37 @@
         /* =========================================================
            GŁOSOWANIE
            ========================================================= */
+        /* Punkty */
+        .nav-pts {
+            flex-shrink: 0; padding: 3px 8px; margin-left: 2px;
+            font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.04em;
+            color: var(--accent-2); background: rgba(var(--accent-rgb), 0.16);
+            transition: transform 0.25s, background-color 0.25s;
+        }
+        .nav-pts.is-bump { transform: scale(1.18); background: rgba(var(--accent-rgb), 0.38); color: #fff; }
+        .nav-user { max-width: 260px; }
+        .nav-menu-lvl { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--accent-2); }
+        .hero-pts { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 600; color: var(--muted); }
+        .hero-pts b { color: var(--accent-2); }
+        .hero-pts .link-btn { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+        .hero-pts.is-earning::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); animation: blink 1.4s infinite; }
+        .pts-rules { margin: 16px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+        .pts-rules li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; align-items: center; padding: 8px 10px; background: var(--surface-2); font-size: 13px; }
+        .pts-rules li span:first-child { grid-row: span 2; font-size: 16px; }
+        .pts-rules b { font-weight: 700; color: #fff; }
+        .pts-rules small { color: var(--accent-2); font-weight: 700; font-size: 12px; }
+        .pts-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 18px; }
+        .pts-cta .btn { margin-top: 0; }
+        .pts-me { font-size: 14px; font-weight: 600; color: var(--muted); }
+        .pts-me b { color: #fff; }
+        .home-row.pts-row { grid-template-columns: 28px 30px minmax(0, 1fr) auto; }
+        .pts-rank { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 20px; text-align: center; color: var(--dim); }
+        .pts-row:nth-child(1) .pts-rank { color: #f5c542; }
+        .pts-row:nth-child(2) .pts-rank { color: #c9ccd3; }
+        .pts-row:nth-child(3) .pts-rank { color: #cd8a4f; }
+        .pts-row.is-me { box-shadow: inset 3px 0 0 var(--accent-2); }
+        .pts-lvl { display: block; font-size: 11px; font-weight: 700; color: var(--dim); }
+
         /* Discord na żywo */
         .dc { --cut: 22px; margin-top: 2px; }
         .dc > .hud-in { padding: 26px 28px 28px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
@@ -945,6 +976,8 @@
             .nav-auth { margin-right: -4px; }
             .nav-login { width: 46px; padding: 0; }
             .nav-login span, .nav-name { display: none; }
+            .nav-pts { font-size: 13px; padding: 2px 6px; }
+            .pts-rules { grid-template-columns: 1fr; }
             .nav-user .hud-in { padding: 0 8px; }
             .nav-menu { right: -54px; }
             .topnav-links {
@@ -956,6 +989,9 @@
             .media-grid.videos { grid-template-columns: 1fr; }
             .media-grid.shorts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
             .modal-close { top: -54px; right: 0; }
+        }
+        @media (max-width: 420px) {
+            .nav-pts { display: none; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -993,6 +1029,7 @@
             <symbol id="i-youtube" viewBox="0 0 576 512"><path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.781 64 288 64 288 64S117.22 64 74.629 75.486c-23.497 6.322-42.003 24.947-48.284 48.597-11.412 42.867-11.412 132.305-11.412 132.305s0 89.438 11.412 132.305c6.281 23.65 24.787 41.5 48.284 47.821C117.22 448 288 448 288 448s170.78 0 213.371-11.486c23.497-6.321 42.003-24.171 48.284-47.821 11.412-42.867 11.412-132.305 11.412-132.305s0-89.438-11.412-132.305zm-317.51 213.508V175.185l142.739 81.205-142.739 81.201z"/></symbol>
             <symbol id="i-wifi" viewBox="0 0 640 512"><path d="M54.2 202.9C123.2 136.7 216.8 96 320 96s196.8 40.7 265.8 106.9c12.8 12.2 33 11.8 45.2-.9s11.8-33-.9-45.2C549.7 79.5 440.4 32 320 32S90.3 79.5 9.8 156.7C-2.9 169-3.3 189.2 8.9 202s32.5 13.2 45.2 .9zM320 256c56.8 0 108.6 21.1 148.2 56c13.3 11.7 33.5 10.4 45.2-2.8s10.4-33.5-2.8-45.2C459.8 219.2 393 192 320 192s-139.8 27.2-190.5 72c-13.3 11.7-14.5 31.9-2.8 45.2s31.9 14.5 45.2 2.8c39.5-34.9 91.3-56 148.2-56zm64 160a64 64 0 1 0 -128 0 64 64 0 1 0 128 0z"/></symbol>
             <symbol id="i-envelope" viewBox="0 0 512 512"><path d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4L236.8 313.6c11.4 8.5 27 8.5 38.4 0L492.8 150.4c12.1-9.1 19.2-23.3 19.2-38.4c0-26.5-21.5-48-48-48H48zM0 176V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V176L294.4 339.2c-22.8 17.1-54 17.1-76.8 0L0 176z"/></symbol>
+            <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 3h10v2h4v3a5 5 0 0 1-4.6 5A5 5 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A5 5 0 0 1 7.6 13 5 5 0 0 1 3 8V5h4zm0 4H5v1a3 3 0 0 0 2 2.8zm10 0v3.8A3 3 0 0 0 19 8V7z"/></symbol>
             <symbol id="i-poll" viewBox="0 0 24 24"><path d="M3 4h12v4H3zM3 10h18v4H3zM3 16h8v4H3z"/></symbol>
         </defs>
     </svg>
@@ -1023,11 +1060,12 @@
                     <svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg><span>Zaloguj</span>
                 </button>
                 <button id="nav-user" type="button" class="hud nav-user" aria-haspopup="true" aria-expanded="false" hidden>
-                    <span class="hud-in"><img id="nav-avatar" alt="" referrerpolicy="no-referrer"><span id="nav-name" class="nav-name"></span></span>
+                    <span class="hud-in"><img id="nav-avatar" alt="" referrerpolicy="no-referrer"><span id="nav-name" class="nav-name"></span><span id="nav-pts" class="nav-pts" hidden></span></span>
                 </button>
                 <div id="nav-menu" class="hud nav-menu" hidden>
                     <div class="hud-in">
-                        <p class="nav-menu-who">Zalogowano jako<b id="nav-menu-name"></b></p>
+                        <p class="nav-menu-who">Zalogowano jako<b id="nav-menu-name"></b><span id="nav-menu-lvl" class="nav-menu-lvl" hidden></span></p>
+                        <a href="profil.html">Mój profil</a>
                         <a href="#glosowanie" id="nav-menu-poll" hidden>Głosowanie</a>
                         <a href="minigierki.html">Minigierki i rankingi</a>
                         <a href="ustawienia.html" id="nav-menu-settings" hidden>Ustawienia</a>
@@ -1084,6 +1122,7 @@
                         <div id="hero-meta" class="hero-meta"></div>
                         <p id="hero-sub" class="hero-sub"></p>
                         <div id="hero-actions" class="hero-actions"></div>
+                        <p id="hero-pts" class="hero-pts" hidden></p>
                     </div>
                 </div>
             </div>
@@ -1315,6 +1354,31 @@
             </div>
         </section>
 
+        <!-- ===================== PUNKTY WIDZÓW ===================== -->
+        <section id="punkty" aria-labelledby="pts-title">
+            <div class="hud game-teaser" data-reveal>
+                <div class="hud-in">
+                    <div class="game-text">
+                        <div class="hud is-silver plate">
+                            <div class="hud-in">
+                                <span class="plate-icon"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg></span>
+                                <h2 id="pts-title" class="plate-title"><span class="tx">Punkty widzów</span></h2>
+                            </div>
+                        </div>
+                        <p class="note">Zbieraj punkty za oglądanie streamów i filmów tutaj na stronie, granie w minigierki i głosowanie w ankietach. Wbijaj kolejne poziomy i odznaki!</p>
+                        <ul id="pts-rules" class="pts-rules"></ul>
+                        <div id="pts-cta" class="pts-cta"></div>
+                    </div>
+                    <div class="game-board">
+                        <p class="game-board-title">Top widzów</p>
+                        <ol id="pts-board" class="home-board" aria-live="polite">
+                            <li class="home-empty">Ranking wkrótce</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- ===================== MINIGIERKI ===================== -->
         <section id="minigierki" aria-labelledby="game-title">
             <div class="hud game-teaser" data-reveal>
@@ -1395,6 +1459,7 @@
     <!-- Ustawienia rankingu i lista minigierek (wspólne z grami) -->
     <script src="config.js"></script>
     <script src="gry-lista.js"></script>
+    <script src="punkty.js"></script>
     <!-- Biblioteka Supabase: logowanie Discord + głosowanie -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script>
@@ -2490,6 +2555,7 @@
         const modalFrameIn = $('modal-frame-in');
         let lastFocused = null;
 
+        let currentVideoId = null;   // do liczenia punktów za oglądanie
         function openVideo(id, isShort, trigger) {
             const ytUrl = isShort ? `https://www.youtube.com/shorts/${id}` : `https://www.youtube.com/watch?v=${id}`;
             if (!canEmbed) { window.open(ytUrl, '_blank', 'noopener'); return; }
@@ -2502,6 +2568,7 @@
                 allow="autoplay; encrypted-media; picture-in-picture; fullscreen; web-share" allowfullscreen></iframe>`;
             $('modal-yt-link').href = ytUrl;
             modal.classList.add('show');
+            currentVideoId = id;
             modal.setAttribute('aria-hidden', 'false');
             document.body.style.overflow = 'hidden';
             modal.querySelector('.modal-close').focus();
@@ -2510,6 +2577,7 @@
         function closeVideo() {
             if (!modal.classList.contains('show')) return;
             modal.classList.remove('show');
+            currentVideoId = null;
             modal.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
             setTimeout(() => { if (!modal.classList.contains('show')) modalFrameIn.innerHTML = ''; }, 300);
@@ -2691,6 +2759,7 @@
                     showToast('Nie udało się zapisać głosu – ankieta mogła się już zakończyć', true);
                 } else {
                     showToast(prev === undefined ? 'Głos zapisany!' : 'Zmieniono głos');
+                    if (prev === undefined) document.dispatchEvent(new CustomEvent('zawlox-points-changed', { detail: { reason: 'vote' } }));
                 }
                 refreshResults();
             }
@@ -2825,6 +2894,8 @@
                 const { data } = await sb.auth.getSession();
                 user = data.session ? data.session.user : null;
                 renderNavAuth();
+                window.ZAWLOX_SB = sb;
+                document.dispatchEvent(new CustomEvent('zawlox-auth', { detail: { user } }));
                 await checkAdmin();
                 await loadPolls();
                 let scroll = false;
@@ -2834,6 +2905,7 @@
                     const was = user && user.id;
                     user = session ? session.user : null;
                     renderNavAuth();
+                    if ((user && user.id) !== was) document.dispatchEvent(new CustomEvent('zawlox-auth', { detail: { user } }));
                     if ((user && user.id) !== was) { await checkAdmin(); await loadPolls(); }
                 });
                 // wyniki odświeżają się same, gdy sekcja jest na ekranie
@@ -2843,6 +2915,177 @@
                     if (r.bottom > 0 && r.top < innerHeight) refreshResults();
                 }, REFRESH_MS);
             })();
+        })();
+        // =====================================================================
+        // PUNKTY WIDZÓW
+        // Punkty przyznaje baza (supabase-punkty.sql) – strona tylko pyta i pokazuje.
+        // Oglądanie: co minutę oglądania streama/filmu NA TEJ STRONIE (karta widoczna).
+        // =====================================================================
+        (function points() {
+            const P = window.ZawloxPunkty;
+            if (!P) return;
+            const cfg = window.ZAWLOX_CONFIG || {};
+            let sb = null, user = null, total = null, capped = { stream: false, video: false };
+            let heroVisible = false, watchedSec = 0, watchKind = '', watchRef = '', ticking = false, firstAward = true;
+
+            // ---------- tabelka "jak zdobywać" ----------
+            const rules = $('pts-rules');
+            P.RULES.forEach(([icon, what, pts, limit]) => {
+                const li = document.createElement('li');
+                li.innerHTML = '<span aria-hidden="true"></span><b></b><small></small>';
+                li.children[0].textContent = icon;
+                li.children[1].textContent = what;
+                li.children[2].textContent = `${pts} · ${limit}`;
+                rules.appendChild(li);
+            });
+
+            // ---------- licznik w menu ----------
+            function showTotal(t, bump) {
+                total = t;
+                const chip = $('nav-pts');
+                chip.hidden = !user || t === null;
+                if (t === null) return;
+                chip.textContent = nf.format(t) + ' pkt';
+                const lv = P.level(t);
+                const menuLvl = $('nav-menu-lvl');
+                menuLvl.hidden = false;
+                menuLvl.textContent = `Poziom ${lv.level} · ${P.title(lv.level)} · ${nf.format(t)} pkt`;
+                if (bump) { chip.classList.remove('is-bump'); void chip.offsetWidth; chip.classList.add('is-bump'); setTimeout(() => chip.classList.remove('is-bump'), 350); }
+                renderCta();
+            }
+
+            async function refreshTotal(announce) {
+                if (!sb || !user) return;
+                const { data, error } = await sb.rpc('my_profile');
+                if (error || !data) return;
+                const before = total;
+                showTotal(Number(data.points) || 0, before !== null && data.points > before);
+                if (announce && before !== null && data.points > before) showToast(`+${data.points - before} pkt!`);
+                loadBoard();
+            }
+
+            // ---------- przycisk / info w sekcji ----------
+            function renderCta() {
+                const box = $('pts-cta');
+                box.innerHTML = '';
+                if (!sb) return;
+                if (!user) {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.className = 'btn btn-discord';
+                    b.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg> Zaloguj i zbieraj';
+                    b.addEventListener('click', () => $('nav-login').click());
+                    box.appendChild(b);
+                    return;
+                }
+                const a = document.createElement('a');
+                a.className = 'btn btn-primary'; a.href = 'profil.html';
+                a.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg> Mój profil';
+                box.appendChild(a);
+                if (total !== null) {
+                    const lv = P.level(total);
+                    const me = document.createElement('span');
+                    me.className = 'pts-me';
+                    me.innerHTML = 'Masz <b></b> · poziom <b></b>';
+                    me.children[0].textContent = nf.format(total) + ' pkt';
+                    me.children[1].textContent = lv.level;
+                    box.appendChild(me);
+                }
+            }
+
+            // ---------- ranking ----------
+            async function loadBoard() {
+                const board = $('pts-board');
+                if (!sb) return;
+                const { data, error } = await sb.rpc('points_top', { p_limit: 5 });
+                if (error) { board.innerHTML = '<li class="home-empty">Ranking wkrótce</li>'; return; }
+                board.innerHTML = '';
+                if (!data || !data.length) { board.innerHTML = '<li class="home-empty">Nikt jeszcze nie ma punktów – bądź pierwszy!</li>'; return; }
+                data.forEach((r, i) => {
+                    const li = document.createElement('li');
+                    li.className = 'home-row pts-row' + (r.is_me ? ' is-me' : '');
+                    const rank = document.createElement('span'); rank.className = 'pts-rank'; rank.textContent = i + 1;
+                    let av;
+                    if (r.avatar_url) { av = document.createElement('img'); av.src = r.avatar_url; av.alt = ''; av.loading = 'lazy'; av.referrerPolicy = 'no-referrer'; }
+                    else { av = document.createElement('span'); const m = String(r.name || '').match(/[\p{L}\p{N}]/u); av.textContent = m ? m[0].toUpperCase() : '?'; }
+                    av.className = 'home-av';
+                    const name = document.createElement('span'); name.className = 'home-name';
+                    name.textContent = r.name;
+                    const lvl = document.createElement('span'); lvl.className = 'pts-lvl';
+                    lvl.textContent = `Poziom ${P.level(r.points).level}`;
+                    name.appendChild(lvl);
+                    const score = document.createElement('span'); score.className = 'home-score';
+                    score.textContent = nf.format(r.points);
+                    li.append(rank, av, name, score);
+                    board.appendChild(li);
+                });
+            }
+
+            // ---------- oglądanie ----------
+            if ('IntersectionObserver' in window) {
+                new IntersectionObserver(([e]) => { heroVisible = e.isIntersecting && e.intersectionRatio >= 0.25; },
+                    { threshold: [0, 0.25, 0.5] }).observe($('hero'));
+            }
+            function currentWatch() {
+                if (document.hidden) return null;
+                if (currentVideoId && modal.classList.contains('show')) return ['video', currentVideoId];
+                const hero = $('hero');
+                if (hero.classList.contains('is-live') && $('hero-media').querySelector('iframe') && heroVisible)
+                    return ['stream', heroKey.replace('live-', '')];
+                return null;
+            }
+            function renderHeroHint() {
+                const el = $('hero-pts');
+                const live = $('hero').classList.contains('is-live') && $('hero-media').querySelector('iframe');
+                if (!sb || !live) { el.hidden = true; return; }
+                el.hidden = false;
+                el.classList.toggle('is-earning', !!user && !capped.stream);
+                if (!user) {
+                    el.innerHTML = 'Oglądasz? <button type="button" class="link-btn">Zaloguj się</button> i zbieraj <b>+1 pkt</b> za każdą minutę.';
+                    el.querySelector('button').addEventListener('click', () => $('nav-login').click());
+                } else if (capped.stream) {
+                    el.textContent = 'Dzisiejszy limit punktów za stream zebrany 💪 Wracaj jutro!';
+                } else {
+                    el.innerHTML = 'Zbierasz <b>+1 pkt</b> za każdą minutę oglądania tutaj.';
+                }
+            }
+
+            async function tick() {
+                renderHeroHint();
+                const w = user && sb ? currentWatch() : null;
+                if (!w || capped[w[0]]) { return; }
+                if (w[0] !== watchKind || w[1] !== watchRef) { watchKind = w[0]; watchRef = w[1]; watchedSec = 0; }
+                watchedSec += 5;
+                if (watchedSec < 60 || ticking) return;
+                watchedSec = 0; ticking = true;
+                try {
+                    const { data, error } = await sb.rpc('watch_tick', { p_kind: watchKind, p_ref: watchRef });
+                    if (!error && data) {
+                        if (data.capped) { capped[watchKind] = true; renderHeroHint(); }
+                        if (data.awarded > 0) {
+                            showTotal(Number(data.total), true);
+                            if (firstAward) { firstAward = false; showToast(`+${data.awarded} pkt za oglądanie – zbieraj dalej!`); }
+                        }
+                    }
+                } finally { ticking = false; }
+            }
+            setInterval(tick, 5000);
+
+            // ---------- logowanie / wylogowanie ----------
+            document.addEventListener('zawlox-auth', async (e) => {
+                sb = window.ZAWLOX_SB || sb;
+                user = e.detail.user;
+                total = null; capped = { stream: false, video: false }; firstAward = true;
+                showTotal(null);
+                renderCta(); renderHeroHint();
+                if (!user) { $('nav-menu-lvl').hidden = true; loadBoard(); return; }
+                const { data: daily } = await sb.rpc('claim_daily');
+                if (daily > 0) showToast(`+${daily} pkt za codzienną wizytę!`);
+                await refreshTotal(false);
+            });
+            document.addEventListener('zawlox-points-changed', () => setTimeout(() => refreshTotal(true), 600));
+            // gdy ktoś wróci na kartę – odśwież stan (np. punkty zdobyte w minigierkach)
+            document.addEventListener('visibilitychange', () => { if (!document.hidden && user) refreshTotal(false); });
+            if (!cfg.supabaseUrl) $('punkty').hidden = true;
         })();
     </script>
 </body>

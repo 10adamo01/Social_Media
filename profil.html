@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mój profil | Zawlox</title>
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#0e0e10">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 0h52v52L52 64H0V12z' fill='%230e0e10' stroke='%23d4d4d8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23a970ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gry.css">
+    <script src="motyw.js"></script>
+    <style>
+        .panel .hud-in { padding: 22px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
+
+        /* ---------- karta gracza ---------- */
+        .card { --cut: 24px; margin-bottom: 18px; }
+        .card > .hud-in {
+            display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 26px;
+            padding: 28px;
+            background:
+                radial-gradient(ellipse 60% 120% at 0% 0%, rgba(var(--accent-rgb), 0.22), transparent 60%),
+                linear-gradient(180deg, #141417 0%, #0f0f12 100%);
+        }
+        .card-av { width: 112px; height: 112px; border-radius: 50%; object-fit: cover; background: var(--surface-2); box-shadow: 0 0 0 4px #0f0f12, 0 0 0 6px var(--accent); }
+        .card-av.avatar-fallback { display: grid; place-items: center; font-family: var(--font-display); font-weight: 900; font-size: 48px; color: var(--muted); }
+        .card-name { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: clamp(34px, 5vw, 52px); line-height: 1; text-transform: uppercase; overflow-wrap: anywhere; }
+        .card-title { margin: 6px 0 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .chip { padding: 4px 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(var(--accent-rgb), 0.18); color: var(--accent-2); }
+        .chip.dim { background: var(--surface-2); color: var(--muted); }
+        .bar { position: relative; height: 12px; background: var(--surface-2); overflow: hidden; }
+        .bar span { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 1s cubic-bezier(0.16, 1, 0.3, 1); }
+        .bar-txt { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+        .bar-txt b { color: #fff; }
+        .card-pts { text-align: right; }
+        .card-pts .num { font-family: var(--font-display); font-weight: 900; font-size: clamp(48px, 7vw, 76px); line-height: 0.9; font-variant-numeric: tabular-nums; }
+        .card-pts .lbl { font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-2); }
+        .card-pts .sub2 { margin-top: 8px; font-size: 13px; color: var(--muted); }
+        .card-pts .sub2 b { color: #fff; }
+
+        /* ---------- statystyki ---------- */
+        .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+        .stat { padding: 14px 16px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+        .stat dt { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+        .stat dd { margin: 4px 0 0; font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+        .stat dd small { font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--muted); }
+
+        .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+        .col { display: grid; gap: 18px; }
+
+        /* rekordy */
+        .rec { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 12px; background: var(--surface-2); }
+        .rec + .rec { margin-top: 6px; }
+        .rec a { font-family: var(--font-display); font-weight: 800; font-size: 18px; text-transform: uppercase; }
+        .rec a:hover { color: var(--accent-2); }
+        .rec .val { font-family: var(--font-display); font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
+        .rec .pl { min-width: 54px; text-align: right; font-size: 12px; font-weight: 800; color: var(--muted); }
+        .rec .pl.top { color: var(--gold); }
+        .rec.none .val { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--dim); }
+
+        /* odznaki */
+        .badges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .badge { display: grid; justify-items: center; gap: 4px; padding: 14px 8px 12px; text-align: center; background: var(--surface-2); }
+        .badge .ico { font-size: 28px; line-height: 1; }
+        .badge b { font-size: 12.5px; }
+        .badge small { font-size: 11px; line-height: 1.35; color: var(--muted); }
+        .badge.locked { opacity: 0.45; }
+        .badge.locked .ico { filter: grayscale(1); }
+        .badge:not(.locked) { box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.55); }
+
+        /* historia */
+        .hist { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+        .hist li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; background: var(--surface-2); font-size: 14px; }
+        .hist .what { min-width: 0; }
+        .hist .what b { display: block; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hist .what small { font-size: 12px; color: var(--muted); }
+        .hist .plus { font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--good); }
+
+        /* ranking */
+        .top-row { display: grid; grid-template-columns: 26px 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; background: var(--surface-2); }
+        .top-row + .top-row { margin-top: 6px; }
+        .top-row.is-me { box-shadow: inset 3px 0 0 var(--accent-2); }
+        .top-row:nth-child(1) .rank { color: var(--gold); }
+        .top-row:nth-child(2) .rank { color: var(--silver-medal); }
+        .top-row:nth-child(3) .rank { color: var(--bronze); }
+
+        /* zasady */
+        .rules-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+        .rules-list li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; background: var(--surface-2); font-size: 13.5px; }
+        .rules-list small { display: block; font-size: 11.5px; color: var(--dim); }
+        .rules-list b { font-family: var(--font-display); font-size: 17px; color: var(--accent-2); white-space: nowrap; }
+        .note-small { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim); }
+
+        /* konto */
+        .acc { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; font-size: 14px; }
+        .acc dt { color: var(--muted); }
+        .acc dd { margin: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+
+        .empty { padding: 14px 10px; font-size: 13px; color: var(--dim); text-align: center; background: var(--surface-2); }
+
+        .gate { max-width: 560px; }
+        .gate .hud-in { display: grid; justify-items: start; gap: 14px; }
+        .gate h2 { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 30px; text-transform: uppercase; }
+        .gate p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
+
+        @media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 860px) {
+            .cols { grid-template-columns: 1fr; }
+            .card > .hud-in { grid-template-columns: auto minmax(0, 1fr); }
+            .card-pts { grid-column: 1 / -1; text-align: left; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+            .card-pts .sub2 { margin: 0; }
+        }
+        @media (max-width: 520px) {
+            .card > .hud-in { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
+            .card-av { width: 84px; height: 84px; }
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .badges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .panel .hud-in { padding: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+        <symbol id="i-arrow-right" viewBox="0 0 448 512"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/></symbol>
+        <symbol id="i-discord" viewBox="0 0 640 512"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></symbol>
+    </defs></svg>
+    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <main>
+        <div class="top">
+            <a class="back" href="./"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Wróć do Zawlox</a>
+            <a class="back" href="minigierki.html"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Minigierki</a>
+        </div>
+
+        <div class="title-row">
+            <div>
+                <p class="kicker">Konto widza</p>
+                <h1>Mój profil</h1>
+            </div>
+            <p class="rules">Punkty zbierasz za oglądanie streamów i filmów <b>na stronie Zawloxa</b>, granie w minigierki, głosowanie w ankietach i codzienne wizyty.</p>
+        </div>
+
+        <div id="gate" class="hud panel gate">
+            <div class="hud-in">
+                <h2 id="gate-title">Wczytuję profil…</h2>
+                <p id="gate-text"></p>
+                <div id="gate-actions"></div>
+            </div>
+        </div>
+
+        <div id="profile" hidden>
+            <!-- karta gracza -->
+            <div class="hud is-silver card">
+                <div class="hud-in">
+                    <div id="p-av-wrap"></div>
+                    <div>
+                        <h2 id="p-name" class="card-name"></h2>
+                        <div class="card-title"><span id="p-level" class="chip"></span><span id="p-title" class="chip dim"></span></div>
+                        <div class="bar" role="progressbar" aria-label="Postęp do następnego poziomu" aria-valuemin="0" aria-valuemax="100"><span id="p-bar"></span></div>
+                        <p id="p-bar-txt" class="bar-txt"></p>
+                    </div>
+                    <div class="card-pts">
+                        <div><div id="p-points" class="num">0</div><div class="lbl">punktów</div></div>
+                        <div id="p-rank" class="sub2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <dl class="stats">
+                <div class="stat"><dt>Dziś</dt><dd id="s-today">0</dd></div>
+                <div class="stat"><dt>Streamy</dt><dd id="s-stream">0</dd></div>
+                <div class="stat"><dt>Filmy</dt><dd id="s-video">0</dd></div>
+                <div class="stat"><dt>Gry</dt><dd id="s-games">0</dd></div>
+                <div class="stat"><dt>Ankiety</dt><dd id="s-votes">0</dd></div>
+                <div class="stat"><dt>Seria</dt><dd id="s-streak">0</dd></div>
+            </dl>
+
+            <div class="cols">
+                <div class="col">
+                    <section class="hud panel" aria-labelledby="rec-title">
+                        <div class="hud-in">
+                            <h2 id="rec-title" class="panel-title">Rekordy w minigierkach</h2>
+                            <div id="records"></div>
+                        </div>
+                    </section>
+                    <section class="hud panel" aria-labelledby="badge-title">
+                        <div class="hud-in">
+                            <h2 id="badge-title" class="panel-title">Odznaki <small id="badge-count"></small></h2>
+                            <div id="badges" class="badges"></div>
+                        </div>
+                    </section>
+                    <section class="hud panel" aria-labelledby="acc-title">
+                        <div class="hud-in">
+                            <h2 id="acc-title" class="panel-title">Konto</h2>
+                            <dl class="acc">
+                                <dt>Discord</dt><dd id="a-discord"></dd>
+                                <dt>Na stronie od</dt><dd id="a-joined"></dd>
+                                <dt>Ostatnie logowanie</dt><dd id="a-last"></dd>
+                                <dt>Aktywne dni</dt><dd id="a-days"></dd>
+                            </dl>
+                            <div class="me-actions"><button id="logout" type="button" class="btn btn-ghost btn-sm">Wyloguj się</button></div>
+                        </div>
+                    </section>
+                </div>
+                <div class="col">
+                    <section class="hud panel" aria-labelledby="hist-title">
+                        <div class="hud-in">
+                            <h2 id="hist-title" class="panel-title">Ostatnie punkty</h2>
+                            <ul id="history" class="hist"></ul>
+                        </div>
+                    </section>
+                    <section class="hud panel" aria-labelledby="top-title">
+                        <div class="hud-in">
+                            <h2 id="top-title" class="panel-title">Top widzów</h2>
+                            <div id="top"></div>
+                        </div>
+                    </section>
+                    <section class="hud panel" aria-labelledby="how-title">
+                        <div class="hud-in">
+                            <h2 id="how-title" class="panel-title">Jak zdobywać punkty</h2>
+                            <ul id="how" class="rules-list"></ul>
+                            <p class="note-small">Oglądanie liczy się tylko na tej stronie (stream w sekcji „Teraz” i filmy otwarte w odtwarzaczu), gdy karta jest widoczna. Punktów za oglądanie bezpośrednio na Twitchu, Kicku czy YouTube strona nie widzi.</p>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script src="gry-lista.js"></script>
+    <script src="punkty.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const P = window.ZawloxPunkty;
+        const GRY = window.ZAWLOX_GRY || {};
+        const cfg = window.ZAWLOX_CONFIG || {};
+        const nf = new Intl.NumberFormat('pl-PL');
+        const sb = (cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase)
+            ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey) : null;
+        const dateFmt = new Intl.DateTimeFormat('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
+        const rtf = new Intl.RelativeTimeFormat('pl', { numeric: 'auto' });
+
+        function ago(iso) {
+            const s = Math.round((Date.parse(iso) - Date.now()) / 1000);
+            for (const [u, sec] of [['day', 86400], ['hour', 3600], ['minute', 60]]) if (Math.abs(s) >= sec) return rtf.format(Math.round(s / sec), u);
+            return 'przed chwilą';
+        }
+        function displayName(u) {
+            const m = (u && u.user_metadata) || {};
+            return (m.custom_claims && m.custom_claims.global_name) || m.full_name || m.name || 'Gracz';
+        }
+        function initial(name) { const m = String(name || '').match(/[\p{L}\p{N}]/u); return m ? m[0].toUpperCase() : '?'; }
+        function avatar(url, name, cls) {
+            if (url) { const i = document.createElement('img'); i.className = cls; i.src = url; i.alt = ''; i.referrerPolicy = 'no-referrer'; return i; }
+            const d = document.createElement('span'); d.className = cls + ' avatar-fallback'; d.textContent = initial(name); return d;
+        }
+        function gate(title, text, el) {
+            $('profile').hidden = true; $('gate').hidden = false;
+            $('gate-title').textContent = title; $('gate-text').textContent = text || '';
+            const a = $('gate-actions'); a.innerHTML = ''; if (el) a.appendChild(el);
+        }
+
+        // ---------- karta + statystyki ----------
+        function renderCard(user, p) {
+            const name = displayName(user);
+            const meta = user.user_metadata || {};
+            const wrap = $('p-av-wrap'); wrap.innerHTML = '';
+            wrap.appendChild(avatar(meta.avatar_url, name, 'card-av'));
+            $('p-name').textContent = name;
+            const lv = P.level(p.points);
+            $('p-level').textContent = 'Poziom ' + lv.level;
+            $('p-title').textContent = P.title(lv.level);
+            requestAnimationFrame(() => { $('p-bar').style.width = Math.round(lv.progress * 100) + '%'; });
+            $('p-bar').parentElement.setAttribute('aria-valuenow', Math.round(lv.progress * 100));
+            $('p-bar-txt').innerHTML = `Do poziomu ${lv.level + 1}: <b>${nf.format(lv.left)} pkt</b> (${nf.format(p.points - lv.from)} / ${nf.format(lv.to - lv.from)})`;
+            $('p-points').textContent = nf.format(p.points);
+            $('p-rank').innerHTML = p.rank ? `<b>#${p.rank}</b> z ${nf.format(p.players)} widzów` : 'Zdobądź pierwsze punkty, żeby trafić do rankingu';
+
+            $('s-today').textContent = '+' + nf.format(p.today);
+            $('s-stream').innerHTML = `${nf.format(p.stream_min)} <small>min</small>`;
+            $('s-video').innerHTML = `${nf.format(p.video_min)} <small>min</small>`;
+            $('s-games').textContent = nf.format(p.games);
+            $('s-votes').textContent = nf.format(p.votes);
+            const st = P.streak(p.days);
+            $('s-streak').innerHTML = `${st} <small>${st === 1 ? 'dzień' : 'dni'}</small>`;
+
+            $('a-discord').textContent = meta.full_name || meta.name || name;
+            $('a-joined').textContent = p.joined ? dateFmt.format(new Date(p.joined)) : '–';
+            $('a-last').textContent = user.last_sign_in_at ? ago(user.last_sign_in_at) : '–';
+            $('a-days').textContent = nf.format((p.days || []).length);
+
+            const b = P.badges(p);
+            $('badge-count').textContent = `${b.filter(x => x.ok).length} / ${b.length}`;
+            const box = $('badges'); box.innerHTML = '';
+            for (const x of b) {
+                const d = document.createElement('div');
+                d.className = 'badge' + (x.ok ? '' : ' locked');
+                d.title = x.ok ? 'Zdobyta!' : 'Jeszcze nie zdobyta';
+                d.innerHTML = '<span class="ico" aria-hidden="true"></span><b></b><small></small>';
+                d.children[0].textContent = x.icon; d.children[1].textContent = x.name; d.children[2].textContent = x.desc;
+                box.appendChild(d);
+            }
+        }
+
+        // ---------- rekordy w grach ----------
+        async function renderRecords(user) {
+            const box = $('records'); box.innerHTML = '';
+            const { data } = await sb.from('leaderboard').select('game, score').eq('user_id', user.id);
+            const mine = new Map((data || []).map(r => [r.game, r.score]));
+            for (const [id, g] of Object.entries(GRY)) {
+                const row = document.createElement('div');
+                const best = mine.get(id);
+                row.className = 'rec' + (best === undefined ? ' none' : '');
+                row.innerHTML = '<a></a><span class="val"></span><span class="pl"></span>';
+                row.children[0].textContent = g.name; row.children[0].href = g.url;
+                if (best === undefined) { row.children[1].textContent = 'Jeszcze nie grano'; }
+                else {
+                    row.children[1].textContent = nf.format(best) + (g.unit ? ' ' + g.unit : '');
+                    let q = sb.from('leaderboard').select('user_id', { count: 'exact', head: true }).eq('game', id);
+                    q = g.lower ? q.lt('score', best) : q.gt('score', best);
+                    q.then(({ count }) => {
+                        if (typeof count !== 'number') return;
+                        row.children[2].textContent = `#${count + 1}`;
+                        if (count < 5) { row.children[2].classList.add('top'); row.children[2].textContent += ' · top 5'; }
+                    });
+                }
+                box.appendChild(row);
+            }
+        }
+
+        // ---------- historia (minuty oglądania łączymy w jeden wpis) ----------
+        async function renderHistory() {
+            const ul = $('history'); ul.innerHTML = '';
+            const { data } = await sb.from('points_log').select('amount, reason, ref, created_at').order('created_at', { ascending: false }).limit(300);
+            const groups = [];
+            for (const r of data || []) {
+                const g = groups[groups.length - 1];
+                const watch = r.reason.startsWith('watch_');
+                if (g && watch && g.reason === r.reason && g.ref === r.ref && Date.parse(g.from) - Date.parse(r.created_at) < 10 * 60e3) {
+                    g.amount += r.amount; g.count++; g.from = r.created_at;
+                } else groups.push({ ...r, count: 1, from: r.created_at });
+            }
+            if (!groups.length) { ul.innerHTML = '<li class="empty" style="display:block">Brak punktów – zagraj w minigierkę albo obejrzyj film na stronie!</li>'; return; }
+            for (const g of groups.slice(0, 12)) {
+                const info = P.REASONS[g.reason] || { label: g.reason, icon: '⭐' };
+                let label = info.label;
+                if ((g.reason === 'game' || g.reason === 'game_best') && GRY[g.ref]) label += ' · ' + GRY[g.ref].name;
+                if (g.reason === 'watch_stream') label += g.ref === 'kick' ? ' · Kick' : ' · Twitch';
+                if (g.reason.startsWith('watch_')) label += ` · ${g.count} min`;
+                const li = document.createElement('li');
+                li.innerHTML = '<span aria-hidden="true"></span><span class="what"><b></b><small></small></span><span class="plus"></span>';
+                li.children[0].textContent = info.icon;
+                li.querySelector('b').textContent = label;
+                li.querySelector('small').textContent = ago(g.created_at);
+                li.children[2].textContent = '+' + nf.format(g.amount);
+                ul.appendChild(li);
+            }
+        }
+
+        async function renderTop() {
+            const box = $('top'); box.innerHTML = '';
+            const { data } = await sb.rpc('points_top', { p_limit: 10 });
+            if (!data || !data.length) { box.innerHTML = '<div class="empty">Ranking jest jeszcze pusty.</div>'; return; }
+            data.forEach((r, i) => {
+                const row = document.createElement('div');
+                row.className = 'top-row' + (r.is_me ? ' is-me' : '');
+                const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = i + 1;
+                const name = document.createElement('span'); name.className = 'pname'; name.textContent = r.name;
+                const pts = document.createElement('span'); pts.className = 'pscore'; pts.textContent = nf.format(r.points);
+                row.append(rank, avatar(r.avatar_url, r.name, 'avatar'), name, pts);
+                box.appendChild(row);
+            });
+        }
+
+        function renderHow() {
+            const ul = $('how');
+            P.RULES.forEach(([icon, what, pts, limit]) => {
+                const li = document.createElement('li');
+                li.innerHTML = '<span aria-hidden="true"></span><span><span class="w"></span><small></small></span><b></b>';
+                li.children[0].textContent = icon;
+                li.querySelector('.w').textContent = what;
+                li.querySelector('small').textContent = limit;
+                li.children[2].textContent = pts;
+                ul.appendChild(li);
+            });
+        }
+
+        // ---------- start ----------
+        async function login() {
+            const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } });
+            if (error) gate('Nie udało się zalogować', 'Spróbuj ponownie za chwilę.');
+        }
+
+        async function start(session) {
+            const user = session ? session.user : null;
+            if (!user) {
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'btn btn-discord';
+                b.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg> Zaloguj przez Discord';
+                b.addEventListener('click', login);
+                gate('Zaloguj się', 'Profil, punkty i odznaki są dostępne po zalogowaniu przez Discord.', b);
+                return;
+            }
+            await sb.rpc('claim_daily');
+            const { data: p, error } = await sb.rpc('my_profile');
+            if (error || !p) { gate('Punkty jeszcze nie działają', 'Właściciel strony musi najpierw włączyć system punktów w bazie.'); return; }
+            $('gate').hidden = true; $('profile').hidden = false;
+            renderCard(user, p);
+            renderRecords(user); renderHistory(); renderTop();
+        }
+
+        if (!sb) gate('Brak połączenia z bazą', 'Nie udało się wczytać konfiguracji strony.');
+        else {
+            renderHow();
+            $('logout').addEventListener('click', async () => { await sb.auth.signOut(); location.href = './'; });
+            let lastId;
+            sb.auth.getSession().then(({ data }) => { lastId = data.session && data.session.user.id; start(data.session); });
+            sb.auth.onAuthStateChange((_e, session) => {
+                const id = session && session.user.id;
+                if (id !== lastId) { lastId = id; start(session); }
+            });
+        }
+    </script>
+</body>
+</html>

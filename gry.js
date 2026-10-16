@@ -116,7 +116,7 @@
                             <div class="me-best">Rekord: <b data-el="me-best">–</b><span data-el="me-rank"></span></div>
                         </div>
                     </div>
-                    <div class="me-actions"><button type="button" class="btn btn-ghost btn-sm" data-el="btn-logout">Wyloguj</button></div>
+                    <div class="me-actions"><a class="btn btn-primary btn-sm" href="profil.html">Mój profil</a><button type="button" class="btn btn-ghost btn-sm" data-el="btn-logout">Wyloguj</button></div>
                 </div>
             </div></div>`),
             h(`<a class="btn btn-ghost btn-sm other-games" href="minigierki.html">${icon('gamepad')} Wszystkie minigierki</a>`)

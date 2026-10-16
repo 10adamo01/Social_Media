@@ -32,6 +32,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+    <script>
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+            document.documentElement.classList.add('js-reveal');
+        }
+    </script>
     <style>
         /* =========================================================
            KOLORY I ZMIENNE – styl paneli z Twitcha
@@ -188,31 +193,96 @@
             position: relative; z-index: 2;
             width: 100%; max-width: 1180px;
             margin: 0 auto;
-            padding: 56px 20px 32px;
+            padding: 92px 20px 32px;
         }
-        section { margin-top: 56px; }
+        section { margin-top: 72px; }
 
         /* =========================================================
            NAGŁÓWEK PROFILU
            ========================================================= */
-        .share-wrap { position: absolute; top: 18px; right: 18px; z-index: 50; }
+        .topnav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 900;
+            transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, border-color 0.3s ease;
+            border-bottom: 1px solid transparent;
+        }
+        .topnav.is-scrolled { background: rgba(14, 14, 16, 0.78); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom-color: var(--line); }
+        .topnav.is-hidden { transform: translateY(-100%); }
+        .topnav-in {
+            max-width: 1180px; margin: 0 auto; padding: 12px 20px;
+            display: flex; align-items: center; gap: 24px;
+        }
+        .topnav-logo {
+            font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 26px; letter-spacing: 0.04em;
+            text-transform: uppercase; color: #fff;
+            display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
+        }
+        .topnav-logo .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent-2); }
+        .topnav-logo .dot.is-live { background: var(--live); animation: blink 1.2s infinite; }
+        .topnav-links { display: flex; gap: 4px; margin-left: auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+        .topnav-links::-webkit-scrollbar { display: none; }
+        .topnav-links a {
+            position: relative;
+            padding: 8px 12px;
+            font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--muted); white-space: nowrap;
+            transition: color 0.2s;
+        }
+        .topnav-links a::after {
+            content: ''; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px;
+            background: var(--accent-2);
+            transform: scaleX(0); transform-origin: right; transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .topnav-links a:hover, .topnav-links a.is-active { color: #fff; }
+        .topnav-links a:hover::after, .topnav-links a.is-active::after { transform: scaleX(1); transform-origin: left; }
+        .topnav .icon-btn { flex-shrink: 0; }
+        section[id], header[id] { scroll-margin-top: 80px; }
         .icon-btn { --cut: 10px; display: block; width: 46px; height: 46px; }
         .icon-btn .hud-in { display: grid; place-items: center; background: var(--surface); transition: background-color 0.2s; }
         .icon-btn:hover .hud-in { background: var(--surface-2); }
         .icon-btn .ic { color: var(--muted); transition: color 0.2s; }
         .icon-btn:hover .ic { color: #fff; }
 
-        .profile {
-            display: flex; align-items: center; justify-content: center; gap: 36px;
-            max-width: 900px; margin: 0 auto;
+        .profile { position: relative; max-width: 1040px; margin: 0 auto; }
+        /* Ogromny napis na całą szerokość – zdjęcie nachodzi na jego dół */
+        .mega {
+            position: relative; z-index: 0;
+            margin: 0;
+            display: flex; justify-content: center;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-weight: 900;
+            font-size: clamp(96px, 25vw, 300px);
+            line-height: 0.8;
+            letter-spacing: -0.01em;
+            text-transform: uppercase;
+            user-select: none;
+            will-change: transform;
         }
-        .profile-info { flex: 1; min-width: 0; }
+        .mega .ch {
+            display: inline-block;
+            overflow: hidden;            /* maska: litery wysuwają się spod krawędzi */
+            padding-bottom: 0.06em;
+        }
+        .mega .ch > span {
+            display: inline-block;
+            background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 45%, #6b6b75 100%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            transform: translateY(105%);
+            animation: chUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: calc(var(--i) * 0.07s + 0.1s);
+        }
+        @keyframes chUp { to { transform: none; } }
+        .profile-row {
+            position: relative; z-index: 2;
+            display: flex; align-items: center; justify-content: center; gap: 36px;
+            max-width: 900px; margin: clamp(-120px, -9vw, -36px) auto 0;
+        }
+        .profile-info { flex: 1; min-width: 0; padding-top: clamp(30px, 6vw, 80px); }
         .avatar-wrap { position: relative; flex-shrink: 0; }
-        .avatar { --cut: 26px; width: 168px; height: 168px; padding: 3px; }
+        .avatar { --cut: 30px; width: clamp(150px, 20vw, 230px); height: clamp(150px, 20vw, 230px); padding: 3px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); }
         .avatar .hud-in { padding: 5px; background: var(--bg); }
         .avatar img {
             width: 100%; height: 100%; object-fit: cover;
-            clip-path: polygon(21px 0, 100% 0, 100% calc(100% - 21px), calc(100% - 21px) 100%, 0 100%, 0 21px);
+            clip-path: polygon(25px 0, 100% 0, 100% calc(100% - 25px), calc(100% - 25px) 100%, 0 100%, 0 25px);
         }
         .live-badge {
             position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%);
@@ -236,20 +306,11 @@
             font-size: 11px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase;
             color: var(--accent-2);
         }
-        .profile-name {
-            margin: 2px 0 0;
-            display: flex; align-items: center; gap: 10px;
-            font-family: 'Barlow Condensed', sans-serif;
-            font-weight: 900;
-            font-size: clamp(52px, 9vw, 76px);
-            line-height: 0.95;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-            background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 55%, #8a8a93 100%);
-            -webkit-background-clip: text; background-clip: text;
-            color: transparent;
+        .verified {
+            margin: 6px 0 0;
+            display: inline-flex; align-items: center; gap: 8px;
+            font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-2);
         }
-        .profile-name .ic { font-size: 0.34em; color: var(--accent-2); }
         .profile-role {
             margin: 10px 0 16px;
             font-size: 13px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
@@ -469,6 +530,51 @@
         .more-link { display: flex; justify-content: center; margin-top: 22px; }
 
         /* =========================================================
+           FILMY – lista tytułów z podglądem podążającym za kursorem
+           ========================================================= */
+        .video-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+        .vrow {
+            position: relative;
+            display: grid; grid-template-columns: 56px minmax(0, 1fr) auto 28px; align-items: center; gap: 18px;
+            width: 100%; padding: 22px 6px; text-align: left;
+            border-bottom: 1px solid var(--line);
+            overflow: hidden;
+        }
+        .vrow::before { /* pasek wypełnienia przy najechaniu */
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(90deg, rgba(145, 71, 255, 0.16), transparent 70%);
+            transform: scaleX(0); transform-origin: left; transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .vrow:hover::before, .vrow:focus-visible::before { transform: scaleX(1); }
+        .vrow > * { position: relative; }
+        .vrow-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 18px; color: var(--dim); font-variant-numeric: tabular-nums; }
+        .vrow-title {
+            font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+            font-size: clamp(24px, 3.2vw, 40px); line-height: 1.05; text-transform: uppercase;
+            color: var(--muted);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            transition: color 0.3s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .vrow:hover .vrow-title, .vrow:focus-visible .vrow-title { color: #fff; transform: translateX(14px); }
+        .vrow-date { font-size: 13px; font-weight: 600; color: var(--dim); white-space: nowrap; }
+        .vrow-new { margin-right: 10px; padding: 3px 8px; background: var(--accent); color: #fff; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 13px; letter-spacing: 0.12em; }
+        .vrow-arrow { color: var(--dim); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s; }
+        .vrow:hover .vrow-arrow { color: #fff; transform: translateX(6px) rotate(-45deg); }
+        .vpreview {
+            --cut: 16px;
+            position: fixed; left: 0; top: 0; z-index: 800;
+            width: 360px; aspect-ratio: 16 / 9;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate3d(-9999px, 0, 0);
+            transition: opacity 0.25s ease;
+        }
+        .vpreview.is-on { opacity: 1; }
+        .vpreview .hud-in { overflow: hidden; background: #000; }
+        .vpreview img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.15); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .vpreview.is-on img { transform: scale(1); }
+
+        /* =========================================================
            MINIGRA
            ========================================================= */
         .game-teaser { --cut: 22px; }
@@ -607,10 +713,19 @@
         /* =========================================================
            ANIMACJE WEJŚCIA
            ========================================================= */
-        .reveal { opacity: 0; transform: translateY(24px); animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes reveal { to { opacity: 1; transform: none; } }
-        .d1 { animation-delay: 0.08s; } .d2 { animation-delay: 0.16s; } .d3 { animation-delay: 0.24s; }
-        .d4 { animation-delay: 0.32s; } .d5 { animation-delay: 0.4s; } .d6 { animation-delay: 0.48s; }
+        /* Elementy z data-reveal wysuwają się od dołu, gdy pojawią się na ekranie.
+           Klasa js-reveal na <html> jest dodawana skryptem – bez JS wszystko jest od razu widoczne. */
+        html.js-reveal [data-reveal] {
+            opacity: 0;
+            transform: translateY(46px);
+            transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+            transition-delay: var(--d, 0s);
+        }
+        html.js-reveal [data-reveal].is-in { opacity: 1; transform: none; }
+        /* tytuły sekcji: tekst wysuwa się spod maski */
+        .plate-title { overflow: hidden; }
+        html.js-reveal [data-reveal] .plate-title > .tx { display: inline-block; transform: translateY(105%); transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--d, 0s) + 0.15s); }
+        html.js-reveal [data-reveal].is-in .plate-title > .tx { transform: none; }
 
         /* =========================================================
            RESPONSYWNOŚĆ
@@ -620,10 +735,9 @@
             .media-grid.shorts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
         @media (max-width: 820px) {
-            .profile { flex-direction: column; gap: 22px; text-align: center; }
-            .profile-name { justify-content: center; }
+            .profile-row { flex-direction: column; gap: 18px; text-align: center; }
+            .profile-info { padding-top: 0; }
             .about { text-align: left; margin: 0 auto; }
-            .avatar { width: 140px; height: 140px; }
             .hero .hud-in { grid-template-columns: 1fr; }
             .contact > .hud-in { grid-template-columns: 1fr; padding: 22px; }
             .game-teaser > .hud-in { grid-template-columns: 1fr; padding: 22px; }
@@ -631,8 +745,17 @@
             .media-grid.videos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 640px) {
-            main { padding: 44px 16px 24px; }
-            section { margin-top: 44px; }
+            main { padding: 80px 16px 24px; }
+            section { margin-top: 52px; }
+            .topnav-in { padding: 10px 16px; gap: 12px; }
+            .topnav-logo { font-size: 22px; }
+            .topnav-links a { padding: 8px 8px; font-size: 14px; }
+            .topnav-links a::after { left: 8px; right: 8px; }
+            .topnav-links {
+                -webkit-mask-image: linear-gradient(90deg, #000 80%, transparent);
+                mask-image: linear-gradient(90deg, #000 80%, transparent);
+                padding-right: 24px;
+            }
             .links-grid { grid-template-columns: 1fr; gap: 12px; }
             .media-grid.videos { grid-template-columns: 1fr; }
             .media-grid.shorts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -686,18 +809,35 @@
     <div id="cursor-dot" aria-hidden="true"></div>
     <div id="cursor-outline" aria-hidden="true"></div>
 
-    <!-- Udostępnianie -->
-    <div class="share-wrap">
-        <button id="share-btn" type="button" class="hud icon-btn" aria-label="Udostępnij profil">
-            <span class="hud-in"><svg class="ic" aria-hidden="true"><use href="#i-share-nodes"/></svg></span>
-        </button>
-    </div>
+    <!-- Górne menu (chowa się przy przewijaniu w dół, wraca przy przewijaniu w górę) -->
+    <nav id="topnav" class="topnav" aria-label="Menu strony">
+        <div class="topnav-in">
+            <a class="topnav-logo" href="#top"><span id="nav-dot" class="dot" aria-hidden="true"></span>Zawlox</a>
+            <div class="topnav-links">
+                <a href="#teraz">Teraz</a>
+                <a href="#sociale">Sociale</a>
+                <a href="#latest">Najnowsze</a>
+                <a href="#minigierki">Minigierki</a>
+                <a href="#kontakt">Kontakt</a>
+            </div>
+            <button id="share-btn" type="button" class="hud icon-btn" aria-label="Udostępnij profil">
+                <span class="hud-in"><svg class="ic" aria-hidden="true"><use href="#i-share-nodes"/></svg></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Podgląd filmu podążający za kursorem (lista "Filmy") -->
+    <div id="vpreview" class="hud is-silver vpreview" aria-hidden="true"><div class="hud-in"><img alt=""></div></div>
 
     <main>
 
         <!-- ===================== PROFIL ===================== -->
-        <header class="profile reveal">
-            <div class="avatar-wrap">
+        <header id="top" class="profile">
+            <h1 id="mega" class="mega" aria-label="Zawlox">
+                <span class="ch" style="--i:0" aria-hidden="true"><span>Z</span></span><span class="ch" style="--i:1" aria-hidden="true"><span>A</span></span><span class="ch" style="--i:2" aria-hidden="true"><span>W</span></span><span class="ch" style="--i:3" aria-hidden="true"><span>L</span></span><span class="ch" style="--i:4" aria-hidden="true"><span>O</span></span><span class="ch" style="--i:5" aria-hidden="true"><span>X</span></span>
+            </h1>
+            <div class="profile-row">
+            <div id="avatar-wrap" class="avatar-wrap" data-reveal style="--d: .45s">
                 <div class="hud is-silver avatar">
                     <div class="hud-in">
                         <img id="profile-img" src="https://placehold.co/240x240/18181b/ffffff?text=Z" alt="Awatar Zawlox" width="168" height="168" decoding="async">
@@ -706,12 +846,9 @@
                 <a id="live-badge" class="live-badge" href="https://www.twitch.tv/zawlox" target="_blank" rel="noopener noreferrer" hidden>LIVE</a>
             </div>
 
-            <div class="profile-info">
+            <div class="profile-info" data-reveal style="--d: .6s">
                 <p id="dynamic-greeting" class="greeting"></p>
-                <h1 class="profile-name">
-                    Zawlox
-                    <svg class="ic" title="Zweryfikowany Twórca" aria-label="Zweryfikowany Twórca" role="img"><use href="#i-circle-check"/></svg>
-                </h1>
+                <p class="verified"><svg class="ic" aria-hidden="true"><use href="#i-circle-check"/></svg> Zweryfikowany twórca</p>
                 <p class="profile-role">Twórca wideo &amp; streamer</p>
                 <p class="note about">
                     Lubię grać w gierki ze znajomymi wieczorami, więc właśnie o tej porze możesz mnie tu spotkać.
@@ -719,10 +856,11 @@
                     z wami emocjami i przyjemnością z gry. Może zagramy też razem?
                 </p>
             </div>
+            </div>
         </header>
 
         <!-- ===================== TERAZ: STREAM ALBO NAJNOWSZY FILM ===================== -->
-        <section aria-label="Teraz na kanale" class="reveal d1" style="margin-top: 44px;">
+        <section id="teraz" aria-label="Teraz na kanale" data-reveal>
             <div id="hero" class="hud hero">
                 <div class="hud-in">
                     <div id="hero-media" class="hero-media skeleton"></div>
@@ -738,17 +876,17 @@
         </section>
 
         <!-- ===================== SOCIALE ===================== -->
-        <section aria-labelledby="links-title">
-            <div class="hud is-silver plate reveal d2" style="max-width: 420px;">
+        <section id="sociale" aria-labelledby="links-title">
+            <div class="hud is-silver plate" data-reveal style="max-width: 420px;">
                 <div class="hud-in">
                     <span class="plate-icon"><svg class="ic" aria-hidden="true"><use href="#i-hashtag"/></svg></span>
-                    <h2 id="links-title" class="plate-title">Sociale</h2>
+                    <h2 id="links-title" class="plate-title"><span class="tx">Sociale</span></h2>
                 </div>
             </div>
 
             <nav class="links-grid" aria-label="Moje media społecznościowe">
 
-                <div class="tile-wrap reveal d2" style="--brand: var(--twitch);">
+                <div class="tile-wrap" data-reveal style="--d: 0.00s; --brand: var(--twitch);">
                     <a class="hud tile" href="https://www.twitch.tv/zawlox" target="_blank" rel="noopener noreferrer" aria-label="Twitch – główne transmisje">
                         <span class="hud-in">
                             <svg class="ic tile-bg-icon" aria-hidden="true"><use href="#i-twitch"/></svg>
@@ -763,7 +901,7 @@
                     </a>
                 </div>
 
-                <div class="tile-wrap reveal d3" style="--brand: var(--kick); --brand-ink: #0e0e10;">
+                <div class="tile-wrap" data-reveal style="--d: 0.08s; --brand: var(--kick); --brand-ink: #0e0e10;">
                     <a class="hud tile" href="https://kick.com/zawlox" target="_blank" rel="noopener noreferrer" aria-label="Kick – dodatkowe streamy">
                         <span class="hud-in">
                             <svg class="tile-bg-icon" viewBox="0 0 24 24" width="92" height="92" fill="currentColor" aria-hidden="true"><path d="M4 4h5v4h3v-2h2v-2h6v4h-2v2h-2v4h2v2h2v4h-6v-2h-2v-2h-3v4h-5z"/></svg>
@@ -778,7 +916,7 @@
                     </a>
                 </div>
 
-                <div class="tile-wrap reveal d4" style="--brand: var(--youtube);">
+                <div class="tile-wrap" data-reveal style="--d: 0.16s; --brand: var(--youtube);">
                     <a class="hud tile" href="https://www.youtube.com/@zawlox" target="_blank" rel="noopener noreferrer" aria-label="YouTube – filmy i shorty">
                         <span class="hud-in">
                             <svg class="ic tile-bg-icon" aria-hidden="true"><use href="#i-youtube"/></svg>
@@ -792,7 +930,7 @@
                     </a>
                 </div>
 
-                <div class="tile-wrap reveal d4" style="--brand: var(--tiktok); --brand-ink: #0e0e10;">
+                <div class="tile-wrap" data-reveal style="--d: 0.00s; --brand: var(--tiktok); --brand-ink: #0e0e10;">
                     <a class="hud tile" href="https://www.tiktok.com/@zawlox" target="_blank" rel="noopener noreferrer" aria-label="TikTok – klipy">
                         <span class="hud-in">
                             <svg class="ic tile-bg-icon" aria-hidden="true"><use href="#i-tiktok"/></svg>
@@ -806,7 +944,7 @@
                     </a>
                 </div>
 
-                <div class="tile-wrap reveal d5" style="--brand: var(--instagram);">
+                <div class="tile-wrap" data-reveal style="--d: 0.08s; --brand: var(--instagram);">
                     <a class="hud tile" href="https://www.instagram.com/_adas_adas_/" target="_blank" rel="noopener noreferrer" aria-label="Instagram – zdjęcia">
                         <span class="hud-in">
                             <svg class="ic tile-bg-icon" aria-hidden="true"><use href="#i-instagram"/></svg>
@@ -820,7 +958,7 @@
                     </a>
                 </div>
 
-                <div class="tile-wrap reveal d6" style="--brand: var(--discord);">
+                <div class="tile-wrap" data-reveal style="--d: 0.16s; --brand: var(--discord);">
                     <a class="hud tile" href="https://discord.gg/GgkJnQAcsa" target="_blank" rel="noopener noreferrer" aria-label="Dołącz do serwera Discord">
                         <span class="hud-in">
                             <svg class="ic tile-bg-icon" aria-hidden="true"><use href="#i-discord"/></svg>
@@ -841,13 +979,13 @@
         <!-- ===================== NAJNOWSZE ===================== -->
         <section id="latest" aria-labelledby="latest-title">
             <div class="latest-head">
-                <div class="hud is-silver plate" style="width: min(420px, 100%);">
+                <div class="hud is-silver plate" data-reveal style="width: min(420px, 100%);">
                     <div class="hud-in">
                         <span class="plate-icon"><svg class="ic" aria-hidden="true"><use href="#i-film"/></svg></span>
-                        <h2 id="latest-title" class="plate-title">Najnowsze</h2>
+                        <h2 id="latest-title" class="plate-title"><span class="tx">Najnowsze</span></h2>
                     </div>
                 </div>
-                <div role="tablist" aria-label="Rodzaj materiałów" class="tabs">
+                <div role="tablist" aria-label="Rodzaj materiałów" class="tabs" data-reveal style="--d: .1s">
                     <button type="button" role="tab" id="tab-videos" class="tab-btn" data-tab="videos" aria-selected="true" aria-controls="panel-videos">
                         <svg class="ic" aria-hidden="true"><use href="#i-youtube"/></svg> Filmy
                     </button>
@@ -879,14 +1017,14 @@
         </section>
 
         <!-- ===================== MINIGIERKI ===================== -->
-        <section aria-labelledby="game-title">
-            <div class="hud game-teaser">
+        <section id="minigierki" aria-labelledby="game-title">
+            <div class="hud game-teaser" data-reveal>
                 <div class="hud-in">
                     <div class="game-text">
                         <div class="hud is-silver plate">
                             <div class="hud-in">
                                 <span class="plate-icon"><svg class="ic" aria-hidden="true"><use href="#i-gamepad"/></svg></span>
-                                <h2 id="game-title" class="plate-title">Minigierki</h2>
+                                <h2 id="game-title" class="plate-title"><span class="tx">Minigierki</span></h2>
                             </div>
                         </div>
                         <p class="note">Celność, refleks, pamięć i zręczność – każda gra ma własny ranking. Zaloguj się przez Discord i zawalcz o top 5.</p>
@@ -905,14 +1043,14 @@
         </section>
 
         <!-- ===================== KONTAKT ===================== -->
-        <section aria-labelledby="contact-title">
+        <section id="kontakt" aria-labelledby="contact-title" data-reveal>
             <div class="hud contact">
                 <div class="hud-in">
                     <div class="contact-text">
                         <div class="hud is-silver plate">
                             <div class="hud-in">
                                 <span class="plate-icon"><svg class="ic" aria-hidden="true"><use href="#i-envelope"/></svg></span>
-                                <h2 id="contact-title" class="plate-title">Kontakt</h2>
+                                <h2 id="contact-title" class="plate-title"><span class="tx">Kontakt</span></h2>
                             </div>
                         </div>
                         <p class="note">Współpraca, sponsoring albo pytania biznesowe? Napisz do mnie maila – odpowiadam na wszystkie wiadomości.</p>
@@ -980,6 +1118,102 @@
         const $ = (id) => document.getElementById(id);
 
         $('year').textContent = new Date().getFullYear();
+
+        // =====================================================================
+        // ANIMACJE PRZY PRZEWIJANIU (wzorowane na stronach portfolio)
+        // =====================================================================
+        // 1) Elementy z data-reveal wysuwają się, gdy pojawią się na ekranie
+        const revealObserver = ('IntersectionObserver' in window)
+            ? new IntersectionObserver((entries) => {
+                entries.forEach(en => {
+                    if (en.isIntersecting) { en.target.classList.add('is-in'); revealObserver.unobserve(en.target); }
+                });
+            }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' })
+            : null;
+        function revealScan() {
+            document.querySelectorAll('[data-reveal]:not(.is-in)').forEach(el => {
+                if (revealObserver) revealObserver.observe(el); else el.classList.add('is-in');
+            });
+        }
+        revealScan();
+
+        // 2) Menu: chowa się przy przewijaniu w dół, wraca przy przewijaniu w górę
+        const topnav = $('topnav');
+        let lastY = scrollY, ticking = false;
+
+        // 3) Głębia: ogromny napis przesuwa się wolniej niż strona, zdjęcie lekko szybciej
+        const mega = $('mega');
+        const avatarBox = document.querySelector('.avatar');
+
+        function onScroll() {
+            const y = scrollY;
+            topnav.classList.toggle('is-scrolled', y > 20);
+            if (y > 160 && y > lastY + 4) topnav.classList.add('is-hidden');
+            else if (y < lastY - 4 || y <= 160) topnav.classList.remove('is-hidden');
+            lastY = y;
+            if (!reduceMotion && y < innerHeight * 1.2) {
+                mega.style.transform = `translate3d(0, ${y * 0.35}px, 0)`;
+                mega.style.opacity = Math.max(0, 1 - y / (innerHeight * 0.8)).toFixed(3);
+                avatarBox.style.transform = `translate3d(0, ${y * -0.08}px, 0)`;
+            }
+            ticking = false;
+        }
+        addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+        // po kliknięciu w link w menu menu ma zostać widoczne
+        topnav.querySelectorAll('.topnav-links a').forEach(a => a.addEventListener('click', () => { setTimeout(() => topnav.classList.remove('is-hidden'), 900); }));
+
+        // podświetlenie sekcji, w której aktualnie jesteś
+        if ('IntersectionObserver' in window) {
+            const links = new Map([...topnav.querySelectorAll('.topnav-links a')].map(a => [a.getAttribute('href').slice(1), a]));
+            const secObs = new IntersectionObserver((entries) => {
+                entries.forEach(en => {
+                    if (!en.isIntersecting) return;
+                    links.forEach(a => a.classList.remove('is-active'));
+                    const a = links.get(en.target.id);
+                    if (a) a.classList.add('is-active');
+                });
+            }, { rootMargin: '-45% 0px -50% 0px' });
+            links.forEach((_, id) => { const sec = document.getElementById(id); if (sec) secObs.observe(sec); });
+        }
+
+        // 4) Podgląd filmu, który podąża za kursorem na liście "Filmy".
+        // Na komputerze (myszka, szeroki ekran) filmy są listą tytułów; na telefonie zostaje siatka miniaturek.
+        const LIST_MODE = finePointer && matchMedia('(min-width: 821px)').matches;
+        const videoListEl = $('videos-grid');
+        const vpreview = $('vpreview');
+        const vpImg = vpreview.querySelector('img');
+        let pv = { x: 0, y: 0, tx: 0, ty: 0, rot: 0, on: false, raf: 0 };
+        function previewLoop() {
+            pv.x += (pv.tx - pv.x) * 0.16;
+            pv.y += (pv.ty - pv.y) * 0.16;
+            const vel = Math.max(-8, Math.min(8, (pv.tx - pv.x) * 0.04));
+            pv.rot += (vel - pv.rot) * 0.2;
+            vpreview.style.transform = `translate3d(${pv.x}px, ${pv.y}px, 0) rotate(${pv.rot.toFixed(2)}deg)`;
+            if (pv.on || Math.abs(pv.tx - pv.x) > 0.5) pv.raf = requestAnimationFrame(previewLoop);
+            else pv.raf = 0;
+        }
+        function previewTarget(e) {
+            const w = vpreview.offsetWidth, h = vpreview.offsetHeight;
+            let x = e.clientX + 36;
+            if (x + w > innerWidth - 16) x = e.clientX - w - 36;
+            pv.tx = x;
+            pv.ty = Math.max(12, Math.min(innerHeight - h - 12, e.clientY - h / 2));
+        }
+        function hidePreview() { pv.on = false; vpreview.classList.remove('is-on'); }
+        if (LIST_MODE && !reduceMotion) {
+            videoListEl.addEventListener('mouseover', (e) => {
+                const row = e.target.closest('.vrow[data-thumb]');
+                if (!row) return;
+                if (vpImg.getAttribute('src') !== row.dataset.thumb) vpImg.src = row.dataset.thumb;
+                if (!pv.on) { previewTarget(e); pv.x = pv.tx; pv.y = pv.ty; }
+                pv.on = true;
+                vpreview.classList.add('is-on');
+                if (!pv.raf) pv.raf = requestAnimationFrame(previewLoop);
+            });
+            videoListEl.addEventListener('mousemove', (e) => { if (pv.on) previewTarget(e); });
+            videoListEl.addEventListener('mouseleave', hidePreview);
+            addEventListener('scroll', hidePreview, { passive: true });
+        }
 
         function timeoutSignal(ms) {
             if (window.AbortSignal && AbortSignal.timeout) return AbortSignal.timeout(ms);
@@ -1166,6 +1400,7 @@
                 <circle cx="50" cy="14" r="13" fill="#eb0400" stroke="#0e0e10" stroke-width="4"/>
             </svg>`);
         function setTabLive(live) {
+            $('nav-dot').classList.toggle('is-live', live);
             document.title = live ? `🔴 LIVE | ${baseTitle}` : baseTitle;
             faviconEl.href = live ? liveFavicon : baseFavicon;
         }
@@ -1594,6 +1829,28 @@
 
         const isFresh = (ts) => ts && Date.now() - ts < 3 * 86400 * 1000;
 
+        function createVideoRow(video, i) {
+            const li = document.createElement('li');
+            li.dataset.reveal = '';
+            li.style.setProperty('--d', (i * 0.06).toFixed(2) + 's');
+            li.innerHTML = `
+                <button type="button" class="vrow">
+                    <span class="vrow-num">${String(i + 1).padStart(2, '0')}</span>
+                    <span class="vrow-title"></span>
+                    <span class="vrow-date">${isFresh(video.date) ? '<span class="vrow-new">NOWE</span>' : ''}<span class="d"></span></span>
+                    <svg class="ic vrow-arrow" aria-hidden="true"><use href="#i-arrow-right"/></svg>
+                </button>`;
+            const btn = li.querySelector('button');
+            btn.setAttribute('aria-label', `Odtwórz film: ${video.title}`);
+            btn.dataset.thumb = `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;
+            li.querySelector('.vrow-title').textContent = video.title;
+            li.querySelector('.d').textContent = video.date ? timeAgo(video.date) : 'YouTube';
+            btn.addEventListener('click', () => { hidePreview(); openVideo(video.id, false, btn); });
+            // wczytaj miniaturkę wcześniej, żeby podgląd pojawiał się bez opóźnienia
+            const pre = new Image(); pre.src = btn.dataset.thumb;
+            return li;
+        }
+
         function createVideoCard(video) {
             const card = document.createElement('button');
             card.type = 'button';
@@ -1614,6 +1871,7 @@
             card.querySelector('img').src = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
             card.querySelector('.media-title').textContent = video.title;
             card.querySelector('.d').textContent = video.date ? timeAgo(video.date) : 'YouTube';
+            card.dataset.reveal = '';
             card.addEventListener('click', () => openVideo(video.id, false, card));
             return card;
         }
@@ -1641,11 +1899,18 @@
             img.src = `https://i.ytimg.com/vi/${short.id}/oardefault.jpg`;
             card.querySelector('.media-title').textContent = short.title;
             card.querySelector('.d').textContent = short.date ? timeAgo(short.date) : 'Short';
+            card.dataset.reveal = '';
             card.addEventListener('click', () => openVideo(short.id, true, card));
             return card;
         }
 
         function renderSkeletons(grid, count, isShort) {
+            if (grid === videosGrid && LIST_MODE) {
+                grid.className = 'video-list';
+                grid.innerHTML = Array.from({ length: 4 }, () =>
+                    '<li class="vrow" aria-hidden="true"><span></span><span class="skeleton" style="height:30px;width:70%"></span><span></span><span></span></li>').join('');
+                return;
+            }
             grid.innerHTML = '';
             for (let i = 0; i < count; i++) {
                 const el = document.createElement('div');
@@ -1659,6 +1924,7 @@
         }
 
         function renderMessage(grid, icon, text, linkUrl, linkText) {
+            if (grid === videosGrid) grid.className = 'media-grid videos';
             grid.innerHTML = `
                 <div class="panel-msg">
                     <svg class="ic" aria-hidden="true"><use href="#i-${icon}"/></svg>
@@ -1671,7 +1937,12 @@
 
         function renderList(grid, items, factory) {
             grid.innerHTML = '';
-            items.forEach(item => grid.appendChild(factory(item)));
+            items.forEach((item, i) => {
+                const el = factory(item, i);
+                if (!el.style.getPropertyValue('--d')) el.style.setProperty('--d', ((i % 4) * 0.07).toFixed(2) + 's');
+                grid.appendChild(el);
+            });
+            revealScan();
         }
 
         // null = błąd, [] = brak materiałów, undefined = nie ruszaj (nadal się ładuje)
@@ -1684,7 +1955,13 @@
             } else if (!data.videos.length) {
                 renderMessage(videosGrid, 'film', 'Nowe filmy już niedługo!', 'https://www.youtube.com/@zawlox', 'Zasubskrybuj kanał');
             } else {
-                renderList(videosGrid, data.videos.slice(0, VIDEOS_LIMIT), createVideoCard);
+                if (LIST_MODE) {
+                    videosGrid.className = 'video-list';
+                    renderList(videosGrid, data.videos.slice(0, VIDEOS_LIMIT), createVideoRow);
+                } else {
+                    videosGrid.className = 'media-grid videos';
+                    renderList(videosGrid, data.videos.slice(0, VIDEOS_LIMIT), createVideoCard);
+                }
             }
 
             if (data.shorts === undefined) {

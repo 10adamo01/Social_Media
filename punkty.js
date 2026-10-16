@@ -63,7 +63,7 @@ window.ZawloxPunkty = (function () {
             { icon: '🎬', name: 'Kinomaniak',       desc: 'Obejrzyj 60 minut filmów',           ok: p.video_min >= 60 },
             { icon: '🗳️', name: 'Głos ludu',        desc: 'Zagłosuj w 5 ankietach',             ok: p.votes >= 5 },
             { icon: '🔥', name: 'Seria 7 dni',      desc: 'Bądź aktywny 7 dni z rzędu',         ok: s >= 7 },
-            { icon: '👑', name: 'Top 3 widzów',     desc: 'Wskocz do top 3 rankingu punktów',   ok: p.rank !== null && p.rank <= 3 }
+            { icon: '👑', name: 'Top 3 widzów',     desc: 'Wskocz do top 3 rankingu punktów',   ok: p.role === 'owner' || (p.rank !== null && p.rank <= 3) }
         ];
     }
 

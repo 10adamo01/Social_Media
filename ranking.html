@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking widzów | Zawlox</title>
+    <meta name="description" content="Najaktywniejsi widzowie Zawloxa – punkty za oglądanie streamów, filmy, minigierki i ankiety.">
+    <meta property="og:title" content="Ranking widzów | Zawlox">
+    <meta property="og:description" content="Najaktywniejsi widzowie Zawloxa – sprawdź, kto jest na szczycie.">
+    <meta property="og:image" content="https://10adamo01.github.io/Social_Media/podglad.png">
+    <meta name="theme-color" content="#0e0e10">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 0h52v52L52 64H0V12z' fill='%230e0e10' stroke='%23d4d4d8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23a970ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gry.css">
+    <script src="motyw.js"></script>
+    <style>
+        .filters { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+        .seg { display: inline-flex; padding: 4px; gap: 4px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+        .seg button {
+            padding: 9px 16px;
+            font-family: var(--font-display); font-weight: 800; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--muted); transition: background-color 0.15s, color 0.15s;
+        }
+        .seg button:hover { color: #fff; }
+        .seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
+        /* ---------- podium ---------- */
+        .podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 14px; margin-bottom: 18px; }
+        .pod { --cut: 18px; }
+        .pod .hud-in { display: grid; justify-items: center; gap: 6px; padding: 22px 14px 18px; text-align: center; background: linear-gradient(180deg, #17171b 0%, #0f0f12 100%); }
+        .pod.p1 .hud-in { padding-top: 30px; padding-bottom: 26px; background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245, 197, 66, 0.18), transparent 70%), linear-gradient(180deg, #17171b 0%, #0f0f12 100%); }
+        .pod .medal { font-size: 30px; line-height: 1; }
+        .pod.p1 .medal { font-size: 40px; }
+        .pod .av { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--surface-2); box-shadow: 0 0 0 3px #0f0f12, 0 0 0 5px var(--ring); }
+        .pod.p1 .av { width: 92px; height: 92px; }
+        .pod.p1 { --ring: var(--gold); } .pod.p2 { --ring: var(--silver-medal); } .pod.p3 { --ring: var(--bronze); }
+        .pod .av.avatar-fallback { display: grid; place-items: center; font-family: var(--font-display); font-weight: 900; font-size: 30px; color: var(--muted); }
+        .pod .nm { max-width: 100%; font-weight: 800; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pod .pts { font-family: var(--font-display); font-weight: 900; font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
+        .pod.p1 .pts { font-size: 40px; color: var(--gold); }
+        .pod .lv { font-size: 12px; font-weight: 700; color: var(--muted); }
+        .pod.is-me { background: var(--accent-2); }
+        .pod.empty .hud-in { color: var(--dim); font-size: 13px; min-height: 160px; align-content: center; }
+
+        /* ---------- lista ---------- */
+        .list .hud-in { padding: 18px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
+        .thead, .tr { display: grid; grid-template-columns: 48px 36px minmax(0, 1fr) 90px 70px 70px 100px; gap: 12px; align-items: center; }
+        .thead { padding: 0 12px 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+        .thead span:nth-child(n+4), .tr > span:nth-child(n+4) { text-align: right; }
+        .tr { padding: 9px 12px; background: var(--surface-2); }
+        .tr + .tr { margin-top: 6px; }
+        .tr.is-me { box-shadow: inset 3px 0 0 var(--accent-2); background: #25222d; }
+        .tr .pos { font-family: var(--font-display); font-weight: 900; font-size: 22px; text-align: center; color: var(--dim); }
+        .tr .avatar { width: 36px; height: 36px; }
+        .tr .who { min-width: 0; }
+        .tr .who b { display: block; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tr .who small { font-size: 12px; color: var(--muted); }
+        .tr .num { font-size: 14px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .tr .pts { font-family: var(--font-display); font-weight: 800; font-size: 22px; font-variant-numeric: tabular-nums; }
+        .gap { padding: 6px; text-align: center; color: var(--dim); letter-spacing: 0.3em; }
+        .empty { padding: 24px 12px; text-align: center; font-size: 14px; color: var(--muted); background: var(--surface-2); }
+        .me-note { margin: 14px 0 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 13.5px; color: var(--muted); }
+        .me-note b { color: #fff; }
+        .foot { margin: 14px 0 0; font-size: 12px; color: var(--dim); }
+
+        @media (max-width: 760px) {
+            .thead, .tr { grid-template-columns: 34px 32px minmax(0, 1fr) 76px; gap: 10px; }
+            .thead > :nth-child(4), .thead > :nth-child(5), .thead > :nth-child(6),
+            .tr > :nth-child(4), .tr > :nth-child(5), .tr > :nth-child(6) { display: none; }
+            .tr .avatar { width: 32px; height: 32px; }
+            .tr .pts { font-size: 20px; }
+        }
+        @media (max-width: 560px) {
+            .podium { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+            .pod .hud-in { padding: 16px 6px 14px; }
+            .pod .av { width: 52px; height: 52px; } .pod.p1 .av { width: 64px; height: 64px; }
+            .pod .pts { font-size: 24px; } .pod.p1 .pts { font-size: 28px; }
+            .pod .nm { font-size: 13px; }
+            .seg button { padding: 8px 10px; font-size: 14px; }
+            .filters { gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+        <symbol id="i-arrow-right" viewBox="0 0 448 512"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/></symbol>
+    </defs></svg>
+    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <main>
+        <div class="top">
+            <a class="back" href="./"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Wróć do Zawlox</a>
+            <a class="back" href="profil.html"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Mój profil</a>
+        </div>
+
+        <div class="title-row">
+            <div>
+                <p class="kicker">Najaktywniejsi widzowie</p>
+                <h1>Ranking widzów</h1>
+            </div>
+            <p class="rules">Punkty za oglądanie streamów i filmów na stronie, minigierki, ankiety i codzienne wizyty. <b>Tydzień</b> liczy się od poniedziałku, <b>miesiąc</b> od 1. dnia miesiąca.</p>
+        </div>
+
+        <div class="filters">
+            <div class="seg" role="group" aria-label="Okres" data-key="period">
+                <button type="button" data-v="week">Tydzień</button>
+                <button type="button" data-v="month">Miesiąc</button>
+                <button type="button" data-v="all">Cały czas</button>
+            </div>
+            <div class="seg" role="group" aria-label="Kategoria" data-key="category">
+                <button type="button" data-v="all">Wszystko</button>
+                <button type="button" data-v="watch">Oglądanie</button>
+                <button type="button" data-v="games">Minigierki</button>
+            </div>
+        </div>
+
+        <div id="podium" class="podium" aria-label="Podium"></div>
+
+        <section class="hud panel list" aria-label="Pełny ranking">
+            <div class="hud-in">
+                <div class="thead" aria-hidden="true"><span>#</span><span></span><span>Widz</span><span>Oglądanie</span><span>Gry</span><span>Dni</span><span>Punkty</span></div>
+                <div id="rows" aria-live="polite"></div>
+                <div id="me-note" class="me-note" hidden></div>
+                <p class="foot">Twórca kanału nie bierze udziału w rankingu. Ranking odświeża się co minutę.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="punkty.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const P = window.ZawloxPunkty;
+        const cfg = window.ZAWLOX_CONFIG || {};
+        const nf = new Intl.NumberFormat('pl-PL');
+        const sb = (cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase)
+            ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey) : null;
+
+        // wybór zapamiętany w adresie (#month-games) – można wysłać komuś link
+        const state = { period: 'week', category: 'all' };
+        const [hp, hc] = location.hash.slice(1).split('-');
+        if (['week', 'month', 'all'].includes(hp)) state.period = hp;
+        if (['all', 'watch', 'games'].includes(hc)) state.category = hc;
+
+        const PERIOD_TXT = { week: 'w tym tygodniu', month: 'w tym miesiącu', all: 'od początku' };
+
+        function initial(name) { const m = String(name || '').match(/[\p{L}\p{N}]/u); return m ? m[0].toUpperCase() : '?'; }
+        function avatar(url, name, cls) {
+            if (url) { const i = document.createElement('img'); i.className = cls; i.src = url; i.alt = ''; i.loading = 'lazy'; i.referrerPolicy = 'no-referrer'; return i; }
+            const d = document.createElement('span'); d.className = cls + ' avatar-fallback'; d.textContent = initial(name); return d;
+        }
+        const mins = (m) => m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+
+        function syncButtons() {
+            document.querySelectorAll('.seg').forEach(g => g.querySelectorAll('button').forEach(b =>
+                b.setAttribute('aria-pressed', String(b.dataset.v === state[g.dataset.key]))));
+        }
+        document.querySelectorAll('.seg').forEach(g => g.addEventListener('click', (e) => {
+            const b = e.target.closest('button'); if (!b) return;
+            state[g.dataset.key] = b.dataset.v;
+            history.replaceState(null, '', `#${state.period}-${state.category}`);
+            syncButtons(); load();
+        }));
+
+        function renderPodium(top) {
+            const box = $('podium'); box.innerHTML = '';
+            const order = [1, 0, 2];               // 2. miejsce – 1. – 3.
+            for (const i of order) {
+                const r = top[i];
+                const card = document.createElement('div');
+                card.className = `hud pod p${i + 1}` + (r ? (r.is_me ? ' is-me' : '') : ' empty');
+                const inner = document.createElement('div'); inner.className = 'hud-in';
+                if (!r) { inner.textContent = 'Wolne miejsce'; card.appendChild(inner); box.appendChild(card); continue; }
+                const medal = document.createElement('span'); medal.className = 'medal'; medal.textContent = ['🥇', '🥈', '🥉'][i];
+                const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name;
+                const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = nf.format(r.points);
+                const lv = document.createElement('span'); lv.className = 'lv';
+                lv.textContent = 'punktów';
+                inner.append(medal, avatar(r.avatar_url, r.name, 'av'), nm, pts, lv);
+                card.appendChild(inner); box.appendChild(card);
+            }
+        }
+
+        function row(r) {
+            const d = document.createElement('div');
+            d.className = 'tr' + (r.is_me ? ' is-me' : '');
+            const pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = r.pos;
+            if (r.pos <= 3) pos.style.color = ['var(--gold)', 'var(--silver-medal)', 'var(--bronze)'][r.pos - 1];
+            const who = document.createElement('span'); who.className = 'who';
+            who.innerHTML = '<b></b><small></small>';
+            who.children[0].textContent = r.name + (r.is_me ? ' (Ty)' : '');
+            const parts = [];
+            if (Number(r.minutes)) parts.push(mins(Number(r.minutes)) + ' oglądania');
+            if (Number(r.games)) parts.push(nf.format(r.games) + (Number(r.games) === 1 ? ' gra' : ' gier'));
+            who.children[1].textContent = parts.join(' · ') || `${nf.format(r.active_days)} dni aktywności`;
+            const w = document.createElement('span'); w.className = 'num'; w.textContent = r.minutes ? mins(Number(r.minutes)) : '–';
+            const g = document.createElement('span'); g.className = 'num'; g.textContent = nf.format(r.games);
+            const days = document.createElement('span'); days.className = 'num'; days.textContent = nf.format(r.active_days);
+            const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = nf.format(r.points);
+            d.append(pos, avatar(r.avatar_url, r.name, 'avatar'), who, w, g, days, pts);
+            return d;
+        }
+
+        let user = null, loading = 0;
+        async function load() {
+            const my = ++loading;
+            const { data, error } = await sb.rpc('points_ranking', { p_period: state.period, p_category: state.category, p_limit: 50 });
+            if (my !== loading) return;                         // przyszła odpowiedź na starszy wybór
+            const rows = $('rows'); rows.innerHTML = '';
+            const note = $('me-note'); note.hidden = true; note.innerHTML = '';
+            if (error) { rows.innerHTML = '<div class="empty">Ranking jeszcze nie działa – spróbuj później.</div>'; renderPodium([]); return; }
+            const list = data || [];
+            const top = list.filter(r => r.pos <= 50);
+            const me = list.find(r => r.is_me);
+            renderPodium(top.slice(0, 3));
+            if (!top.length) rows.innerHTML = `<div class="empty">Nikt jeszcze nie zdobył punktów ${PERIOD_TXT[state.period]} – możesz być pierwszy!</div>`;
+            top.forEach(r => rows.appendChild(row(r)));
+            if (me && me.pos > 50) {
+                const gap = document.createElement('div'); gap.className = 'gap'; gap.textContent = '•••';
+                rows.append(gap, row(me));
+            }
+            // podpowiedź pod listą
+            if (!sb) return;
+            if (!user) {
+                note.hidden = false;
+                note.innerHTML = '<span>Chcesz tu być? Zaloguj się przez Discord i zbieraj punkty.</span>';
+                const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-discord btn-sm'; b.textContent = 'Zaloguj przez Discord';
+                b.addEventListener('click', () => sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } }));
+                note.appendChild(b);
+            } else if (me) {
+                const above = list.find(r => r.pos === me.pos - 1);
+                const last = top[top.length - 1];
+                const diff = (t) => nf.format(Math.max(1, Number(t.points) - Number(me.points) + 1));
+                note.hidden = false;
+                note.innerHTML = me.pos === 1
+                    ? `<span>Jesteś na <b>1. miejscu</b> ${PERIOD_TXT[state.period]}! 👑</span>`
+                    : above
+                        ? `<span>Jesteś <b>#${me.pos}</b> ${PERIOD_TXT[state.period]}. Do miejsca wyżej brakuje Ci <b>${diff(above)} pkt</b>.</span>`
+                        : `<span>Jesteś <b>#${me.pos}</b> ${PERIOD_TXT[state.period]}. Do top 50 brakuje Ci <b>${diff(last)} pkt</b>.</span>`;
+            }
+        }
+
+        syncButtons();
+        if (!sb) { $('rows').innerHTML = '<div class="empty">Brak połączenia z bazą.</div>'; }
+        else {
+            sb.auth.getSession().then(({ data }) => { user = data.session ? data.session.user : null; load(); });
+            sb.auth.onAuthStateChange((_e, session) => { const u = session ? session.user : null; if ((u && u.id) !== (user && user.id)) { user = u; load(); } });
+            setInterval(() => { if (!document.hidden) load(); }, 60000);
+        }
+    </script>
+</body>
+</html>

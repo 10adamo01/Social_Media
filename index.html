@@ -1066,6 +1066,7 @@
                     <div class="hud-in">
                         <p class="nav-menu-who">Zalogowano jako<b id="nav-menu-name"></b><span id="nav-menu-lvl" class="nav-menu-lvl" hidden></span></p>
                         <a href="profil.html">Mój profil</a>
+                        <a href="ranking.html">Ranking widzów</a>
                         <a href="#glosowanie" id="nav-menu-poll" hidden>Głosowanie</a>
                         <a href="minigierki.html">Minigierki i rankingi</a>
                         <a href="ustawienia.html" id="nav-menu-settings" hidden>Ustawienia</a>
@@ -2925,7 +2926,7 @@
             const P = window.ZawloxPunkty;
             if (!P) return;
             const cfg = window.ZAWLOX_CONFIG || {};
-            let sb = null, user = null, total = null, capped = { stream: false, video: false };
+            let sb = null, user = null, total = null, role = null, capped = { stream: false, video: false };
             let heroVisible = false, watchedSec = 0, watchKind = '', watchRef = '', ticking = false, firstAward = true;
 
             // ---------- tabelka "jak zdobywać" ----------
@@ -2949,7 +2950,7 @@
                 const lv = P.level(t);
                 const menuLvl = $('nav-menu-lvl');
                 menuLvl.hidden = false;
-                menuLvl.textContent = `Poziom ${lv.level} · ${P.title(lv.level)} · ${nf.format(t)} pkt`;
+                menuLvl.textContent = role === 'owner' ? `★ Twórca · ${nf.format(t)} pkt` : `Poziom ${lv.level} · ${P.title(lv.level)} · ${nf.format(t)} pkt`;
                 if (bump) { chip.classList.remove('is-bump'); void chip.offsetWidth; chip.classList.add('is-bump'); setTimeout(() => chip.classList.remove('is-bump'), 350); }
                 renderCta();
             }
@@ -2959,6 +2960,7 @@
                 const { data, error } = await sb.rpc('my_profile');
                 if (error || !data) return;
                 const before = total;
+                role = data.role || null;
                 showTotal(Number(data.points) || 0, before !== null && data.points > before);
                 if (announce && before !== null && data.points > before) showToast(`+${data.points - before} pkt!`);
                 loadBoard();
@@ -2974,20 +2976,25 @@
                     b.type = 'button'; b.className = 'btn btn-discord';
                     b.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-discord"/></svg> Zaloguj i zbieraj';
                     b.addEventListener('click', () => $('nav-login').click());
-                    box.appendChild(b);
+                    const full = document.createElement('a');
+                    full.className = 'btn btn-ghost'; full.href = 'ranking.html'; full.textContent = 'Pełny ranking';
+                    box.append(b, full);
                     return;
                 }
                 const a = document.createElement('a');
                 a.className = 'btn btn-primary'; a.href = 'profil.html';
                 a.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg> Mój profil';
                 box.appendChild(a);
+                const full = document.createElement('a');
+                full.className = 'btn btn-ghost'; full.href = 'ranking.html'; full.textContent = 'Pełny ranking';
+                box.appendChild(full);
                 if (total !== null) {
                     const lv = P.level(total);
                     const me = document.createElement('span');
                     me.className = 'pts-me';
-                    me.innerHTML = 'Masz <b></b> · poziom <b></b>';
+                    me.innerHTML = role === 'owner' ? 'Masz <b></b> · <b>★ Twórca</b>' : 'Masz <b></b> · poziom <b></b>';
                     me.children[0].textContent = nf.format(total) + ' pkt';
-                    me.children[1].textContent = lv.level;
+                    if (role !== 'owner') me.children[1].textContent = lv.level;
                     box.appendChild(me);
                 }
             }

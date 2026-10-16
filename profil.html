@@ -30,6 +30,12 @@
         .card-title { margin: 6px 0 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
         .chip { padding: 4px 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(var(--accent-rgb), 0.18); color: var(--accent-2); }
         .chip.dim { background: var(--surface-2); color: var(--muted); }
+        .chip.creator {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #1a1206; background: linear-gradient(135deg, #fff3c4 0%, #f5c542 45%, #d99a1e 100%);
+            box-shadow: 0 0 18px rgba(245, 197, 66, 0.35);
+        }
+        .card.is-creator .card-av { box-shadow: 0 0 0 4px #0f0f12, 0 0 0 6px #f5c542, 0 0 30px rgba(245, 197, 66, 0.35); }
         .bar { position: relative; height: 12px; background: var(--surface-2); overflow: hidden; }
         .bar span { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 1s cubic-bezier(0.16, 1, 0.3, 1); }
         .bar-txt { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
@@ -158,7 +164,7 @@
                     <div id="p-av-wrap"></div>
                     <div>
                         <h2 id="p-name" class="card-name"></h2>
-                        <div class="card-title"><span id="p-level" class="chip"></span><span id="p-title" class="chip dim"></span></div>
+                        <div class="card-title"><span id="p-level" class="chip"></span><span id="p-title" class="chip dim"></span><span id="p-extra" class="chip dim" hidden>Administrator ankiet</span></div>
                         <div class="bar" role="progressbar" aria-label="Postęp do następnego poziomu" aria-valuemin="0" aria-valuemax="100"><span id="p-bar"></span></div>
                         <p id="p-bar-txt" class="bar-txt"></p>
                     </div>
@@ -214,7 +220,7 @@
                     </section>
                     <section class="hud panel" aria-labelledby="top-title">
                         <div class="hud-in">
-                            <h2 id="top-title" class="panel-title">Top widzów</h2>
+                            <h2 id="top-title" class="panel-title">Top widzów <small><a href="ranking.html" style="color:var(--accent-2)">Cały ranking →</a></small></h2>
                             <div id="top"></div>
                         </div>
                     </section>
@@ -275,13 +281,19 @@
             wrap.appendChild(avatar(meta.avatar_url, name, 'card-av'));
             $('p-name').textContent = name;
             const lv = P.level(p.points);
+            const creator = p.role === 'owner';
             $('p-level').textContent = 'Poziom ' + lv.level;
-            $('p-title').textContent = P.title(lv.level);
+            const t = $('p-title');
+            t.className = 'chip ' + (creator ? 'creator' : 'dim');
+            t.textContent = creator ? '★ Twórca' : P.title(lv.level);
+            $('p-extra').hidden = p.role !== 'admin';
+            document.querySelector('.card').classList.toggle('is-creator', creator);
             requestAnimationFrame(() => { $('p-bar').style.width = Math.round(lv.progress * 100) + '%'; });
             $('p-bar').parentElement.setAttribute('aria-valuenow', Math.round(lv.progress * 100));
             $('p-bar-txt').innerHTML = `Do poziomu ${lv.level + 1}: <b>${nf.format(lv.left)} pkt</b> (${nf.format(p.points - lv.from)} / ${nf.format(lv.to - lv.from)})`;
             $('p-points').textContent = nf.format(p.points);
-            $('p-rank').innerHTML = p.rank ? `<b>#${p.rank}</b> z ${nf.format(p.players)} widzów` : 'Zdobądź pierwsze punkty, żeby trafić do rankingu';
+            $('p-rank').innerHTML = creator ? 'Twórca kanału · poza rankingiem widzów'
+                : p.rank ? `<b>#${p.rank}</b> z ${nf.format(p.players)} widzów` : 'Zdobądź pierwsze punkty, żeby trafić do rankingu';
 
             $('s-today').textContent = '+' + nf.format(p.today);
             $('s-stream').innerHTML = `${nf.format(p.stream_min)} <small>min</small>`;

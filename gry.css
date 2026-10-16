@@ -240,6 +240,37 @@ h1 {
     .hudbar > div { padding: 8px 10px; }
     .stage { aspect-ratio: 3 / 4; }
 }
+/* ---------- drabinka rang (profil, ranking) ---------- */
+.ladder-head { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
+.ladder-head b { color: #fff; }
+.ladder { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.rung {
+    --c: 12px;
+    position: relative; display: grid; justify-items: center; align-content: start; gap: 4px;
+    padding: 16px 10px 14px; text-align: center;
+    background: var(--surface-2);
+    clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
+    box-shadow: inset 0 3px 0 var(--rc);
+}
+.rung-ico { font-size: 32px; line-height: 1.1; }
+.rung-name { font-family: var(--font-display); font-weight: 900; font-size: 19px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--rc); }
+.rung-req { font-family: var(--font-display); font-weight: 800; font-size: 16px; color: #fff; font-variant-numeric: tabular-nums; }
+.rung-desc { font-size: 11.5px; line-height: 1.35; color: var(--muted); }
+.rung-tag { min-height: 18px; margin-top: 4px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.rung.is-current { background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 22%, #1f1f23) 0%, #1f1f23 100%); box-shadow: inset 0 3px 0 var(--rc), inset 0 0 0 1px color-mix(in srgb, var(--rc) 60%, transparent); }
+.rung.is-current .rung-tag { padding: 2px 8px; color: #0e0e10; background: var(--rc); }
+.rung.is-done .rung-tag { color: var(--rc); }
+.rung.is-locked { opacity: 0.5; }
+.rung.is-locked .rung-ico { filter: grayscale(0.8); }
+.rung.is-next { opacity: 0.95; }
+.rung-bar { display: block; width: 80px; height: 6px; margin-top: 4px; background: #2a2a30; overflow: hidden; }
+.rung-bar span { display: block; height: 100%; background: var(--rc); }
+@media (max-width: 900px) { .ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 480px) {
+    .ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rung-name { font-size: 17px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

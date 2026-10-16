@@ -184,6 +184,13 @@
                 <div class="stat"><dt>Seria</dt><dd id="s-streak">0</dd></div>
             </dl>
 
+            <section class="hud panel" aria-labelledby="ranks-title" style="margin-bottom: 18px;">
+                <div class="hud-in">
+                    <h2 id="ranks-title" class="panel-title">Rangi widzów</h2>
+                    <div id="ladder"></div>
+                </div>
+            </section>
+
             <div class="cols">
                 <div class="col">
                     <section class="hud panel" aria-labelledby="rec-title">
@@ -285,7 +292,9 @@
             $('p-level').textContent = 'Poziom ' + lv.level;
             const t = $('p-title');
             t.className = 'chip ' + (creator ? 'creator' : 'dim');
-            t.textContent = creator ? '★ Twórca' : P.title(lv.level);
+            t.textContent = creator ? '★ Twórca' : P.rankOf(lv.level).icon + ' ' + P.title(lv.level);
+            if (!creator) { const rc = P.rankOf(lv.level).color; t.style.color = rc; t.style.boxShadow = `inset 0 0 0 1px ${rc}`; }
+            P.ladder($('ladder'), Number(p.points) || 0);
             $('p-extra').hidden = p.role !== 'admin';
             document.querySelector('.card').classList.toggle('is-creator', creator);
             requestAnimationFrame(() => { $('p-bar').style.width = Math.round(lv.progress * 100) + '%'; });

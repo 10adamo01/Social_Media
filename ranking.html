@@ -16,6 +16,8 @@
     <link rel="stylesheet" href="gry.css">
     <script src="motyw.js"></script>
     <style>
+        .ranks { margin-bottom: 18px; }
+        .ranks .hud-in { padding: 20px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
         .filters { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
         .seg { display: inline-flex; padding: 4px; gap: 4px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
         .seg button {
@@ -117,6 +119,13 @@
             </div>
         </div>
 
+        <section class="hud panel ranks" aria-labelledby="ranks-title">
+            <div class="hud-in">
+                <h2 id="ranks-title" class="panel-title">Rangi widzów <small>liczone z punktów od początku</small></h2>
+                <div id="ladder"></div>
+            </div>
+        </section>
+
         <div id="podium" class="podium" aria-label="Podium"></div>
 
         <section class="hud panel list" aria-label="Pełny ranking">
@@ -206,6 +215,12 @@
         }
 
         let user = null, loading = 0;
+        async function loadLadder() {
+            let pts = null;
+            if (user) { const { data } = await sb.rpc('my_profile'); if (data) pts = Number(data.points) || 0; }
+            P.ladder($('ladder'), pts);
+        }
+
         async function load() {
             const my = ++loading;
             const { data, error } = await sb.rpc('points_ranking', { p_period: state.period, p_category: state.category, p_limit: 50 });
@@ -247,8 +262,9 @@
         syncButtons();
         if (!sb) { $('rows').innerHTML = '<div class="empty">Brak połączenia z bazą.</div>'; }
         else {
-            sb.auth.getSession().then(({ data }) => { user = data.session ? data.session.user : null; load(); });
-            sb.auth.onAuthStateChange((_e, session) => { const u = session ? session.user : null; if ((u && u.id) !== (user && user.id)) { user = u; load(); } });
+            P.ladder($('ladder'), null);
+            sb.auth.getSession().then(({ data }) => { user = data.session ? data.session.user : null; load(); loadLadder(); });
+            sb.auth.onAuthStateChange((_e, session) => { const u = session ? session.user : null; if ((u && u.id) !== (user && user.id)) { user = u; load(); loadLadder(); } });
             setInterval(() => { if (!document.hidden) load(); }, 60000);
         }
     </script>

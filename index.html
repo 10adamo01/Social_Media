@@ -598,6 +598,14 @@
         .pts-rules li span:first-child { grid-row: span 2; font-size: 16px; }
         .pts-rules b { font-weight: 700; color: #fff; }
         .pts-rules small { color: var(--accent-2); font-weight: 700; font-size: 12px; }
+        .pts-sub { margin: 18px 0 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-2); }
+        .pts-ranks { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+        .pts-ranks li { display: grid; justify-items: center; gap: 1px; padding: 9px 4px 8px; text-align: center; background: var(--surface-2); box-shadow: inset 0 2px 0 var(--rc); }
+        .pts-ranks .i { font-size: 20px; line-height: 1.2; }
+        .pts-ranks b { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; line-height: 1.05; letter-spacing: 0.02em; text-transform: uppercase; color: var(--rc); }
+        .pts-ranks small { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .pts-ranks li.is-me { background: color-mix(in srgb, var(--rc) 20%, #1f1f23); box-shadow: inset 0 2px 0 var(--rc), inset 0 0 0 1px var(--rc); }
+        .pts-ranks li.is-me small { color: #fff; }
         .pts-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 18px; }
         .pts-cta .btn { margin-top: 0; }
         .pts-me { font-size: 14px; font-weight: 600; color: var(--muted); }
@@ -978,6 +986,7 @@
             .nav-login span, .nav-name { display: none; }
             .nav-pts { font-size: 13px; padding: 2px 6px; }
             .pts-rules { grid-template-columns: 1fr; }
+            .pts-ranks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             .nav-user .hud-in { padding: 0 8px; }
             .nav-menu { right: -54px; }
             .topnav-links {
@@ -1368,6 +1377,8 @@
                         </div>
                         <p class="note">Zbieraj punkty za oglądanie streamów i filmów tutaj na stronie, granie w minigierki i głosowanie w ankietach. Wbijaj kolejne poziomy i odznaki!</p>
                         <ul id="pts-rules" class="pts-rules"></ul>
+                        <p class="pts-sub">Rangi do zdobycia</p>
+                        <ol id="pts-ranks" class="pts-ranks"></ol>
                         <div id="pts-cta" class="pts-cta"></div>
                     </div>
                     <div class="game-board">
@@ -2940,17 +2951,36 @@
                 rules.appendChild(li);
             });
 
+            // ---------- pasek rang ----------
+            function renderRanks() {
+                const ol = $('pts-ranks'); ol.innerHTML = '';
+                const mine = total !== null && role !== 'owner' ? P.rankOf(P.level(total).level) : null;
+                P.RANKS.forEach(r => {
+                    const li = document.createElement('li');
+                    li.style.setProperty('--rc', r.color);
+                    if (r === mine) { li.className = 'is-me'; li.title = 'Twoja ranga'; }
+                    li.innerHTML = '<span class="i" aria-hidden="true"></span><b></b><small></small>';
+                    li.children[0].textContent = r.icon;
+                    li.children[1].textContent = r.name;
+                    const from = P.need(r.lvl);
+                    li.children[2].textContent = r === mine ? 'Twoja ranga' : from ? nf.format(from) + ' pkt' : 'Start';
+                    ol.appendChild(li);
+                });
+            }
+            renderRanks();
+
             // ---------- licznik w menu ----------
             function showTotal(t, bump) {
                 total = t;
                 const chip = $('nav-pts');
                 chip.hidden = !user || t === null;
-                if (t === null) return;
+                if (t === null) { renderRanks(); return; }
                 chip.textContent = nf.format(t) + ' pkt';
                 const lv = P.level(t);
                 const menuLvl = $('nav-menu-lvl');
                 menuLvl.hidden = false;
                 menuLvl.textContent = role === 'owner' ? `★ Twórca · ${nf.format(t)} pkt` : `Poziom ${lv.level} · ${P.title(lv.level)} · ${nf.format(t)} pkt`;
+                renderRanks();
                 if (bump) { chip.classList.remove('is-bump'); void chip.offsetWidth; chip.classList.add('is-bump'); setTimeout(() => chip.classList.remove('is-bump'), 350); }
                 renderCta();
             }
@@ -3018,7 +3048,8 @@
                     const name = document.createElement('span'); name.className = 'home-name';
                     name.textContent = r.name;
                     const lvl = document.createElement('span'); lvl.className = 'pts-lvl';
-                    lvl.textContent = `Poziom ${P.level(r.points).level}`;
+                    const rk = P.rankOf(P.level(r.points).level);
+                    lvl.textContent = `${rk.icon} ${rk.name}`; lvl.style.color = rk.color;
                     name.appendChild(lvl);
                     const score = document.createElement('span'); score.className = 'home-score';
                     score.textContent = nf.format(r.points);

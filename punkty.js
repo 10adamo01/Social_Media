@@ -14,13 +14,71 @@ window.ZawloxPunkty = (function () {
         return { level: l, from: from, to: to, progress: (points - from) / (to - from), left: to - points };
     }
 
+    // Rangi widzów – próg to poziom (punkty liczy need())
     var RANKS = [
-        [1, 'Nowy widz'], [3, 'Stały widz'], [5, 'Bywalec'], [8, 'Kozak'], [12, 'Giga Kozak'], [18, 'Legenda']
+        { lvl: 1,  name: 'Nowy widz',  icon: '🌱', color: '#9ca3af', desc: 'Pierwsze kroki na kanale' },
+        { lvl: 3,  name: 'Stały widz', icon: '📺', color: '#4ade80', desc: 'Wpadasz regularnie' },
+        { lvl: 5,  name: 'Bywalec',    icon: '⭐', color: '#38bdf8', desc: 'Znają Cię na czacie' },
+        { lvl: 8,  name: 'Kozak',      icon: '🐐', color: '#c084fc', desc: 'Prawdziwy członek ekipy' },
+        { lvl: 12, name: 'Giga Kozak', icon: '⚡', color: '#fb923c', desc: 'Elita Giga Kozaków' },
+        { lvl: 18, name: 'Legenda',    icon: '👑', color: '#facc15', desc: 'Najwyższa ranga kanału' }
     ];
-    function title(lvl) {
-        var t = RANKS[0][1];
-        for (var i = 0; i < RANKS.length; i++) if (lvl >= RANKS[i][0]) t = RANKS[i][1];
-        return t;
+    function rankOf(lvl) {
+        var r = RANKS[0];
+        for (var i = 0; i < RANKS.length; i++) if (lvl >= RANKS[i].lvl) r = RANKS[i];
+        return r;
+    }
+    function title(lvl) { return rankOf(lvl).name; }
+
+    // Drabinka rang: wstawia kafelki do kontenera; points = null → widok dla niezalogowanych
+    function ladder(box, points) {
+        var nf = new Intl.NumberFormat('pl-PL');
+        var has = typeof points === 'number' && !isNaN(points);
+        var lv = has ? level(points).level : 0;
+        var cur = has ? rankOf(lv) : null;
+        var next = null;
+        if (has) for (var i = 0; i < RANKS.length; i++) if (RANKS[i].lvl > lv) { next = RANKS[i]; break; }
+        box.innerHTML = '';
+        var head = document.createElement('p');
+        head.className = 'ladder-head';
+        if (!has) head.innerHTML = 'Zbieraj punkty i awansuj przez <b>6 rang</b> – od Nowego widza aż do Legendy.';
+        else if (!next) head.innerHTML = 'Masz najwyższą rangę – <b>Legenda</b>! 👑';
+        else {
+            var left = need(next.lvl) - points;
+            head.innerHTML = 'Następna ranga: <b></b> – brakuje Ci <b></b>';
+            head.children[0].textContent = next.icon + ' ' + next.name;
+            head.children[1].textContent = nf.format(left) + ' pkt';
+        }
+        box.appendChild(head);
+        var grid = document.createElement('ol');
+        grid.className = 'ladder';
+        RANKS.forEach(function (r, i) {
+            var from = need(r.lvl);
+            var upTo = RANKS[i + 1] ? need(RANKS[i + 1].lvl) : null;
+            var li = document.createElement('li');
+            var state = !has ? 'open' : r === cur ? 'current' : r.lvl <= lv ? 'done' : r === next ? 'next' : 'locked';
+            li.className = 'rung is-' + state;
+            li.style.setProperty('--rc', r.color);
+            li.innerHTML = '<span class="rung-ico" aria-hidden="true"></span><b class="rung-name"></b>' +
+                '<span class="rung-req"></span><span class="rung-desc"></span><span class="rung-tag"></span>';
+            li.querySelector('.rung-ico').textContent = r.icon;
+            li.querySelector('.rung-name').textContent = r.name;
+            li.querySelector('.rung-req').textContent = from === 0 ? 'Start' : nf.format(from) + ' pkt';
+            li.querySelector('.rung-desc').textContent = r.desc;
+            var tag = li.querySelector('.rung-tag');
+            if (state === 'current') tag.textContent = 'Twoja ranga';
+            else if (state === 'done') tag.textContent = '✓ Zdobyta';
+            else if (state === 'next') {
+                var pct = Math.max(0, Math.min(1, (points - need(cur.lvl)) / (from - need(cur.lvl))));
+                tag.innerHTML = '<span class="rung-bar"><span></span></span>';
+                tag.querySelector('.rung-bar span').style.width = Math.round(pct * 100) + '%';
+                tag.title = Math.round(pct * 100) + '%';
+            } else if (state === 'locked') tag.textContent = '🔒';
+            li.setAttribute('aria-label', r.name + ', od ' + (from === 0 ? 'startu' : from + ' punktów') +
+                (state === 'current' ? ', twoja ranga' : state === 'done' ? ', zdobyta' : ''));
+            grid.appendChild(li);
+        });
+        box.appendChild(grid);
     }
 
     var REASONS = {
@@ -67,5 +125,5 @@ window.ZawloxPunkty = (function () {
         ];
     }
 
-    return { level: level, need: need, title: title, REASONS: REASONS, RULES: RULES, streak: streak, badges: badges };
+    return { level: level, need: need, title: title, rankOf: rankOf, RANKS: RANKS, ladder: ladder, REASONS: REASONS, RULES: RULES, streak: streak, badges: badges };
 })();

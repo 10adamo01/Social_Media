@@ -143,6 +143,18 @@
             hub.appendChild(c);
             loadTop(id, g, c.querySelector('.mini-board'));
         }
+
+        // Biuro Śledcze – drużynowa gra detektywistyczna (osobna strona, bez rankingu punktowego)
+        ART.detektyw = '<svg viewBox="0 0 64 64" fill="none"><rect x="8" y="12" width="34" height="42" fill="#d8c398"/><rect x="8" y="8" width="16" height="6" fill="#cbb383"/><path d="M14 24h22M14 31h22M14 38h14" stroke="#22201c" stroke-width="2.5"/><circle cx="42" cy="38" r="11" stroke="#efeff1" stroke-width="4"/><path d="M50 46l8 8" stroke="#efeff1" stroke-width="5" stroke-linecap="round"/><path d="M10 52 L22 46" stroke="#c4372c" stroke-width="2"/></svg>';
+        const det = card('detektyw', {
+            url: 'detektyw/',
+            tag: 'Śledztwo · drużynowo',
+            name: 'Biuro Śledcze',
+            desc: 'Rozwiążcie razem sprawę kryminalną: akta, przesłuchania, tablica dowodów, sprzeczności i wspólna odpowiedź drużyny. Każda sprawa ma własny ranking drużyn.'
+        });
+        det.querySelector('.mini-board').innerHTML = '<li class="mini-empty">Gra drużynowa · logowanie przez Discord</li>';
+        det.querySelector('.card-cta').firstChild.textContent = 'Otwórz akta ';
+        hub.appendChild(det);
     </script>
 </body>
 </html>

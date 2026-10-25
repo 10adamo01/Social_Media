@@ -864,7 +864,8 @@ async function renderProfile(userId) {
   const got = BADGES.filter((b) => b[4](st)).length;
   const hist = st.history || [];
   const solvedHist = hist.filter((h) => h.status === "solved" && h.max > 0).slice(0, 12).reverse();
-  const statusBadge = (h) => h.status === "solved" ? `<span class="badge ok">rozwiązana</span>` : `<span class="badge warn">w toku</span>`;
+  const statusBadge = (h) => h.status === "solved" ? `<span class="badge ok">rozwiązana</span>`
+    : h.status === "abandoned" ? `<span class="badge" title="Pokój został usunięty przed rozwiązaniem">przerwana</span>` : `<span class="badge warn">w toku</span>`;
   const accuracy = n(st.confronts) + n(st.confronts_wrong) ? Math.round(n(st.confronts) * 100 / (n(st.confronts) + n(st.confronts_wrong))) + "%" : "—";
 
   $("#profMain").innerHTML = `

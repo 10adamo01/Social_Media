@@ -768,3 +768,8 @@ mark.flash { background: #ffd54a; color: #000; box-shadow: 0 0 0 3px rgba(255,21
 .cs-tbl tr.warnrow td { background: rgba(181,72,61,.12); }
 .cs-tbl code { font-size: .78rem; margin-right: 4px; }
 .stat-val small { font-size: .7rem; color: var(--muted); }
+
+/* ---------- Nowa wersja gry ---------- */
+.update-banner { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px);
+  background: #2e2716; color: var(--text); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px 10px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.6); font-size: .92rem; }
+@media (max-width: 560px) { .update-banner { flex-wrap: wrap; top: auto; bottom: 12px; } }

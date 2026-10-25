@@ -712,6 +712,31 @@ function newRoomState(room, caseData) {
 /* ------------------------------------------------------------------ */
 /*  Start i logowanie                                                  */
 /* ------------------------------------------------------------------ */
+/* ---- wykrywanie nowej wersji gry (stara wersja w otwartej karcie psuje nowe elementy) ---- */
+const APP_VERSION = (() => { try { return new URL(document.currentScript?.src || location.href).searchParams.get("v") || ""; } catch { return ""; } })();
+let updateShown = false;
+async function checkForUpdate() {
+  if (!APP_VERSION || updateShown || document.visibilityState !== "visible") return;
+  try {
+    const html = await (await fetch(`index.html?t=${Date.now()}`, { cache: "no-store" })).text();
+    const v = (html.match(/app\.js\?v=([\w.-]+)/) || [])[1];
+    if (v && v !== APP_VERSION) showUpdateBanner();
+  } catch { /* offline — spróbujemy później */ }
+}
+function showUpdateBanner() {
+  if (updateShown) return;
+  updateShown = true;
+  const el = document.createElement("div");
+  el.className = "update-banner";
+  el.innerHTML = `<span>🆕 Jest nowa wersja gry. Odśwież stronę, żeby wszystko działało i wyglądało tak samo jak u drużyny.</span>
+    <button class="btn tiny primary" id="updReload">↻ Odśwież teraz</button><button class="btn tiny ghost" id="updLater" title="Później">✕</button>`;
+  document.body.appendChild(el);
+  $("#updReload", el).addEventListener("click", () => location.reload());
+  $("#updLater", el).addEventListener("click", () => el.remove());
+}
+setInterval(checkForUpdate, 120000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(checkForUpdate, 1500); });
+
 let notConfigured = false;
 async function init() {
   window.addEventListener("hashchange", route);
@@ -2589,12 +2614,18 @@ function cardInner(it) {
       <span class="zone-btns"><button class="btn tiny ghost" data-act="rename" title="Zmień nazwę">✏️</button><button class="btn tiny ghost" data-act="color" title="Kolor">🎨</button><button class="btn tiny ghost" data-act="del" title="Usuń strefę (karteczki zostaną)">✕</button></span></div>
       <i class="zone-resize" title="Zmień rozmiar"></i>`;
   }
+  if (it.kind !== "note") {
+    return `<i class="pin"></i><div class="card-title">Ten element pochodzi z nowszej wersji gry.</div>
+      <div class="card-actions"><button class="btn tiny ghost" data-act="reload">↻ Odśwież stronę</button></div>`;
+  }
   return `<i class="pin"></i><textarea maxlength="400" placeholder="Wpisz trop…">${esc(it.text || "")}</textarea>
     <div class="card-actions"><button class="btn tiny ghost" data-act="color" title="Kolor">🎨</button><button class="btn tiny ghost" data-act="del" title="Usuń">✕</button></div>
     <div class="card-by">${esc(by)}</div>`;
 }
 
+const KNOWN_KINDS = ["doc", "note", "quote", "person", "zone"];
 function cardEl(it) {
+  if (!KNOWN_KINDS.includes(it.kind)) showUpdateBanner();
   const el = document.createElement("div");
   el.className = `card ${it.kind} c-${it.color || "yellow"}`;
   el.dataset.id = it.id;
@@ -2689,6 +2720,7 @@ function bindCard(el) {
     const b = e.target.closest("button[data-act]");
     if (!b) return;
     const it = R.items.get(id);
+    if (b.dataset.act === "reload") { location.reload(); return; }
     if (b.dataset.act === "open") {
       openDoc(it.kind === "person" ? "__people" : it.ref);
     } else if (b.dataset.act === "rename") {

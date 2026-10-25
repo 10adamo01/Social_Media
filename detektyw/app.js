@@ -1432,7 +1432,7 @@ const REFRESH = {
     const rows = await q(sb.from("room_hints").select("*").eq("room_id", id).order("used_at"));
     if (rows.length === R.hints.length) return;
     R.hints = rows;
-    if (R.tab === "rozwiazanie" && R.room.status !== "solved") renderTab();
+    if (R.tab === "rozwiazanie" && R.room.status !== "solved") softRenderTab();
   },
   async draft(id) {
     const [d, votes] = await Promise.all([
@@ -1478,7 +1478,7 @@ const REFRESH = {
     R.members = new Map(rows.map(m => [m.user_id, m.profiles || { name: "?" }]));
     rows.forEach(m => R.profiles.set(m.user_id, m.profiles || { name: "?" }));
     renderPresence();
-    if (R.tab === "notatki") renderTab(); else renderVotes();
+    if (R.tab === "notatki") softRenderTab(); else renderVotes();
   },
 };
 
@@ -1539,7 +1539,51 @@ let splitPref = (() => { try { return localStorage.getItem("split") !== "0"; } c
 function isSplit() { return splitPref && window.innerWidth >= SPLIT_MIN; }
 function aktaShown() { return !!R && (isSplit() || R.tab === "akta"); }
 function aktaEl() { return isSplit() ? $("#leftview") : $("#tabview"); }
-function renderAktaPane() { if (!aktaShown()) return; const el = aktaEl(); if (el) renderAkta(el); }
+function renderAktaPane() { if (!aktaShown()) return; const el = aktaEl(); if (el) keepUI(el, () => renderAkta(el)); }
+
+/* Odświeżenie widoku bez „wyrzucania” gracza: zostaje przewinięcie, wpisany tekst i kursor */
+function keepUI(root, fn) {
+  const SCROLLERS = [".viewer", ".doclist", "#tabview", "#leftview", ".eventlog", ".board-wrap"];
+  const winX = window.scrollX, winY = window.scrollY;
+  const scrolls = SCROLLERS.map(sel => { const e = $(sel); return e ? [sel, e.scrollTop, e.scrollLeft] : null; }).filter(Boolean);
+  const fields = (r) => [...r.querySelectorAll("input:not([type=file]):not([type=hidden]), textarea, select")];
+  const keyOf = (f, i) => f.id ? "#" + f.id : `${f.closest("form")?.id || ""}|${f.name || ""}|${f.type === "radio" || f.type === "checkbox" ? f.value : ""}|${f.name ? "" : i}`;
+  const saved = new Map();
+  fields(root).forEach((f, i) => {
+    const dirty = f.type === "radio" || f.type === "checkbox" ? f.checked !== f.defaultChecked : f.tagName === "SELECT" ? false : f.value !== f.defaultValue;
+    if (dirty) saved.set(keyOf(f, i), f.type === "radio" || f.type === "checkbox" ? { checked: f.checked } : { value: f.value });
+  });
+  const act = document.activeElement;
+  let focusKey = null, selA = 0, selB = 0;
+  if (act && root.contains(act) && act.matches("input, textarea, select")) {
+    focusKey = keyOf(act, fields(root).indexOf(act));
+    try { selA = act.selectionStart; selB = act.selectionEnd; } catch { /* ignore */ }
+  }
+  fn();
+  fields(root).forEach((f, i) => {
+    const k = keyOf(f, i), v = saved.get(k);
+    if (v) { if ("checked" in v) f.checked = v.checked; else f.value = v.value; }
+    if (focusKey && k === focusKey) { f.focus({ preventScroll: true }); try { if (selA != null) { f.selectionStart = selA; f.selectionEnd = selB; } } catch { /* ignore */ } }
+  });
+  scrolls.forEach(([sel, t, l]) => { const e = $(sel); if (e) { e.scrollTop = t; e.scrollLeft = l; } });
+  window.scrollTo(winX, winY);
+}
+document.addEventListener("focusout", () => {
+  setTimeout(() => {
+    if (!R?.staleTab) return;
+    const tv = $("#tabview"), act = document.activeElement;
+    if (tv && act && tv.contains(act) && act.matches("input, textarea, select")) return;
+    R.staleTab = false; softRenderTab();
+  }, 400);
+});
+/* Przerysowanie bieżącej zakładki w tle — nie ruszamy jej, gdy ktoś właśnie pisze */
+function softRenderTab() {
+  const tv = $("#tabview");
+  if (!tv) return renderTab();
+  const act = document.activeElement;
+  if (act && tv.contains(act) && act.matches("input, textarea, select")) { R.staleTab = true; return; }
+  keepUI(tv, () => renderTab());
+}
 function openDoc(id) {
   R.docId = id; sessionStorage.setItem(`doc:${R.room.id}`, id);
   if (isSplit()) { hideSelBar(); renderAktaPane(); trackPresence(); }
@@ -1653,6 +1697,7 @@ function viewingLabel(v) {
 }
 
 function renderTab() {
+  if (R) R.staleTab = false;
   const v = $("#tabview");
   if (!v) return;
   if (R.tab === "akta") renderAkta(v);
@@ -2440,11 +2485,13 @@ function renderInbox() {
 async function loadConf(render = false) {
   try {
     const before = R.conf.found.length;
+    const sig = (c) => (c.found || []).map(x => x.id).sort().join(",") + "|" + (c.wrong || 0);
+    const old = sig(R.conf);
     R.conf = await q(sb.rpc("get_confrontations", { p_room: R.room.id }));
     R.conf.found = R.conf.found || [];
-    if (render) {
+    if (render && sig(R.conf) !== old) {
       renderAktaPane();
-      if (R.tab === "rozwiazanie" && R.room.status !== "solved") renderTab();
+      if (R.tab === "rozwiazanie" && R.room.status !== "solved") softRenderTab();
     }
     return R.conf.found.length - before;
   } catch { return 0; }
@@ -2628,8 +2675,10 @@ function refreshHighlights() {
   const body = $(".viewer .doc-body");
   const d = allDocs().find(x => x.id === R.docId);
   if (!body || !d) return;
-  body.innerHTML = renderBlocks(d.blocks);
-  applyHighlights(body, d.id);
+  const sel = window.getSelection();
+  if (sel && !sel.isCollapsed && body.contains(sel.anchorNode)) { R.staleHl = true; return; }
+  R.staleHl = false;
+  keepUI(body, () => { body.innerHTML = renderBlocks(d.blocks); applyHighlights(body, d.id); });
 }
 
 function setupSelectionBar() {
@@ -2671,7 +2720,10 @@ function showMarkBar(id) {
     <button data-sel="pin">📌 Na tablicę</button><button data-sel="tl">🕒 Na oś czasu</button><button data-sel="del">🗑 Usuń</button><button data-sel="x" title="Zamknij">✕</button>`);
 }
 function showSelBar(html) { const bar = $("#selbar"); if (!bar) return; bar.innerHTML = html; bar.hidden = false; }
-function hideSelBar() { const bar = $("#selbar"); if (bar) bar.hidden = true; selState = null; }
+function hideSelBar() {
+  const bar = $("#selbar"); if (bar) bar.hidden = true; selState = null;
+  if (R?.staleHl) setTimeout(() => { if (R?.staleHl && (window.getSelection()?.isCollapsed ?? true)) refreshHighlights(); }, 300);
+}
 async function selAction(a) {
   const st = selState;
   if (!st || !R) return hideSelBar();

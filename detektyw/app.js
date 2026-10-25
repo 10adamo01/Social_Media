@@ -1015,6 +1015,43 @@ function reportModal(doc, quote) {
   });
 }
 
+
+/* ---- zgłaszanie błędów w samej grze (przycisk 🐞 na górnym pasku) ---- */
+function bugInfo() {
+  const where = R ? `pokój „${R.room.name || ""}”, zakładka ${R.tab}${aktaShown() ? `, dokument ${R.docId}` : ""}${isSplit() ? ", podzielony ekran" : ""}` : (location.hash || "#/");
+  return { version: APP_VERSION, where, url: location.pathname + location.hash.replace(/#\/join\/\w+/, "#/join/…"),
+    browser: navigator.userAgent.slice(0, 300), screen: `${window.innerWidth}×${window.innerHeight} @${window.devicePixelRatio || 1}x`,
+    touch: "ontouchstart" in window, lang: navigator.language, time: new Date().toISOString() };
+}
+function bugModal() {
+  if (!me) return;
+  const inRoom = !!R, doc = R && aktaShown() ? allDocs().find(x => x.id === R.docId) : null;
+  const w = showModal("🐞 Zgłoś błąd", `<form class="prompt-form" id="bugForm">
+    ${inRoom ? `<div class="bug-kind">
+      <label class="option"><input type="radio" name="kind" value="game" checked><span><b>Błąd w grze</b> — coś nie działa, źle się wyświetla, nie synchronizuje się…</span></label>
+      <label class="option"><input type="radio" name="kind" value="case"><span><b>Błąd w treści sprawy</b> — literówka, sprzeczne godziny, brakujący fragment${doc ? ` (dotyczy: ${esc(doc.no ? `dok. ${doc.no}` : plain(doc.title || ""))})` : ""}</span></label>
+    </div>` : ""}
+    <textarea name="text" rows="5" maxlength="1000" placeholder="Co się stało? Co klikałeś(-aś) i czego się spodziewałeś(-aś)? Im dokładniej, tym szybciej naprawię." required></textarea>
+    <label class="sw small"><input type="checkbox" name="tech" checked> Dołącz informacje techniczne (przeglądarka, rozmiar ekranu, wersja gry, miejsce w grze)</label>
+    <p class="small">Zgłoszenie widzi tylko admin.</p>
+    <div class="row end"><button type="button" class="btn ghost" data-close>Anuluj</button><button class="btn primary">Wyślij zgłoszenie</button></div></form>`);
+  const f = $("#bugForm", w);
+  setTimeout(() => f.text.focus(), 30);
+  f.addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = $("button.primary", f); btn.disabled = true;
+    try {
+      if (inRoom && f.kind?.value === "case") {
+        await q(sb.rpc("report_case_error", { p_room: R.room.id, p_doc: doc?.id || null, p_doc_title: doc ? `${doc.no ? `Dok. ${doc.no}: ` : ""}${plain(doc.title || "")}` : null, p_text: f.text.value, p_quote: null }));
+      } else {
+        await q(sb.rpc("report_game_bug", { p_text: f.text.value, p_room: R?.room?.id || null, p_info: f.tech.checked ? bugInfo() : null }));
+      }
+      w.remove(); toast("✅ Dziękujemy! Zgłoszenie trafiło do admina.", "ok");
+    } catch (err) { btn.disabled = false; toast(/function|report_game_bug|report_case_error/i.test(errMsg(err)) ? "Admin musi jeszcze zaktualizować bazę (schema.sql)." : errMsg(err), "error", 6000); }
+  });
+}
+document.addEventListener("click", e => { if (e.target.closest("[data-bug]")) { e.preventDefault(); bugModal(); } });
+
 async function renderReportsAdmin() {
   if (!isAdmin) { toast("Ta strona jest dostępna tylko dla admina.", "error"); location.replace("#/"); return; }
   let rows = [], filter = "open";
@@ -1023,7 +1060,7 @@ async function renderReportsAdmin() {
     <header class="lobby-top">${homeLink()}<div class="brand">🔎 ${esc(SITE)}</div><a class="btn tiny ghost" href="#/">← Lobby</a>${topbarUser()}</header>
     <main class="profile-main">
       <section class="panel"><div class="row wrap between"><h2>📮 Zgłoszenia błędów</h2><button class="btn tiny ghost" id="repRefresh">↻ Odśwież</button></div>
-        <p class="small">Gracze zgłaszają tu błędy w sprawach (przycisk ⚠️ przy dokumencie albo przy zaznaczonym fragmencie). Popraw sprawę w ✏️ Edytorze i wgraj ją ponownie, potem oznacz zgłoszenie jako załatwione.</p>
+        <p class="small">Gracze zgłaszają tu błędy w grze (przycisk 🐞 na górnym pasku) i w sprawach (⚠️ przy dokumencie albo przy zaznaczonym fragmencie). Popraw sprawę w ✏️ Edytorze i wgraj ją ponownie, potem oznacz zgłoszenie jako załatwione.</p>
         <div class="row wrap" id="repFilter"></div></section>
       <div id="repList" class="adm-list"><p class="small">Wczytywanie…</p></div>
     </main>
@@ -1035,16 +1072,21 @@ async function renderReportsAdmin() {
       .map(([k, l]) => `<button class="btn tiny ${filter === k ? "primary" : "ghost"}" data-f="${k}">${l}</button>`).join("");
     $$("[data-f]", $("#repFilter")).forEach(b => b.addEventListener("click", () => { filter = b.dataset.f; draw(); }));
     const list = rows.filter(r => filter === "all" || r.status === filter);
-    const byCase = {}; list.forEach(r => (byCase[r.case_id] = byCase[r.case_id] || []).push(r));
-    $("#repList").innerHTML = Object.entries(byCase).map(([cid, rs]) => `<section class="panel">
-      <h3>${esc(rs[0].case_title || cid)} <span class="small">${rs.length} ${plural(rs.length, "zgłoszenie", "zgłoszenia", "zgłoszeń")}${rs[0].case_exists ? "" : " · sprawa usunięta"}</span></h3>
-      ${rs.map(r => `<div class="report ${r.status}" data-id="${r.id}">
-        <div class="row between wrap"><span class="small">${r.doc_title ? `📄 <b>${esc(r.doc_title)}</b> · ` : ""}${avatarHtml({ name: r.user_name, avatar: r.user_avatar }, 18)} ${esc(r.user_name || "?")} · ${esc(timeAgo(r.created_at))}</span>
+    const game = list.filter(r => r.kind === "game");
+    const byCase = {}; list.filter(r => r.kind !== "game").forEach(r => (byCase[r.case_id] = byCase[r.case_id] || []).push(r));
+    const info = (i) => !i ? "" : `<details class="small bug-info"><summary>Informacje techniczne</summary>
+      <div>📍 ${esc(i.where || "")}</div><div>🖥 ${esc(i.screen || "")}${i.touch ? " · dotyk" : ""} · ${esc(i.lang || "")} · wersja ${esc(i.version || "?")}</div><div class="mono">${esc(i.browser || "")}</div></details>`;
+    const item = (r) => `<div class="report ${r.status}" data-id="${r.id}">
+        <div class="row between wrap"><span class="small">${r.kind === "game" && r.case_title ? `🔎 w sprawie <b>${esc(r.case_title)}</b> · ` : ""}${r.doc_title ? `📄 <b>${esc(r.doc_title)}</b> · ` : ""}${avatarHtml({ name: r.user_name, avatar: r.user_avatar }, 18)} ${esc(r.user_name || "?")} · ${esc(timeAgo(r.created_at))}</span>
           <span class="row">${r.status === "open" ? `<button class="btn tiny primary" data-done>✓ Załatwione</button>` : `<button class="btn tiny ghost" data-reopen>↺ Otwórz ponownie</button>`}<button class="btn tiny ghost danger" data-del>🗑</button></span></div>
         ${r.quote ? `<blockquote class="report-quote">„${esc(r.quote)}”</blockquote>` : ""}
-        <p>${esc(r.text)}</p></div>`).join("")}
+        <p>${esc(r.text)}</p>${info(r.info)}</div>`;
+    $("#repList").innerHTML = (game.length ? `<section class="panel"><h3>🐞 Błędy w grze <span class="small">${game.length} ${plural(game.length, "zgłoszenie", "zgłoszenia", "zgłoszeń")}</span></h3>${game.map(item).join("")}</section>` : "")
+      + Object.entries(byCase).map(([cid, rs]) => `<section class="panel">
+      <h3>${esc(rs[0].case_title || cid)} <span class="small">${rs.length} ${plural(rs.length, "zgłoszenie", "zgłoszenia", "zgłoszeń")}${rs[0].case_exists ? "" : " · sprawa usunięta"}</span></h3>
+      ${rs.map(item).join("")}
       ${rs[0].case_exists ? `<a class="btn tiny ghost" href="#/edytor" data-edit="${esc(cid)}">✏️ Otwórz sprawę w edytorze</a>` : ""}</section>`).join("")
-      || `<section class="panel"><p class="empty">${filter === "open" ? "Brak otwartych zgłoszeń. 🎉" : "Brak zgłoszeń."}</p></section>`;
+    if (!list.length) $("#repList").innerHTML = `<section class="panel"><p class="empty">${filter === "open" ? "Brak otwartych zgłoszeń. 🎉" : "Brak zgłoszeń."}</p></section>`;
     $$(".report", $("#repList")).forEach(el => {
       const id = +el.dataset.id;
       const set = async (status) => { try { await q(sb.from("case_reports").update({ status }).eq("id", id)); rows.find(r => r.id === id).status = status; draw(); } catch (e) { toast(errMsg(e), "error"); } };
@@ -1376,6 +1418,7 @@ async function renderLobby() {
     <header class="lobby-top">${homeLink()}<div class="brand">🔎 ${esc(SITE)}</div><a class="btn tiny ghost" href="#/instrukcja">📖 Instrukcja</a>
       <a class="btn tiny ghost" href="#/edytor">✏️ Edytor</a>
       <a class="btn tiny ghost" href="#/profil">👤 Profil</a>
+      <button class="btn tiny ghost" data-bug title="Zgłoś błąd w grze">🐞 Zgłoś błąd</button>
       ${soundButton()}<button class="btn tiny ghost ${streamer ? "on" : ""}" id="streamBtn" title="Tryb streamera — ukrywa kody pokoi">🎥</button>${topbarUser()}</header>
     <main class="lobby-grid">
       <section class="panel span2">
@@ -2199,6 +2242,7 @@ function renderRoom() {
       ${soundButton()}
       <button class="btn tiny ghost ${streamer ? "on" : ""}" id="streamBtn" title="Tryb streamera — ukrywa kod pokoju">🎥</button>
       <a class="btn tiny ghost" href="#/instrukcja" target="_blank" rel="noopener" title="Instrukcja (nowa karta)">📖</a>
+      <button class="btn tiny ghost" data-bug title="Zgłoś błąd w grze">🐞</button>
       ${topbarUser()}
     </header>
     ${split ? `

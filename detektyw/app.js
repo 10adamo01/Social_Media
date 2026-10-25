@@ -2232,10 +2232,109 @@ const COLORS = ["yellow", "pink", "blue", "green"];
 function boardCenter() {
   const wrap = $(".board-wrap");
   if (!wrap) return { x: 120 + Math.random() * 200, y: 120 + Math.random() * 120 };
+  const v = boardView();
   return {
-    x: Math.max(20, Math.min(BOARD_W - 240, wrap.scrollLeft + wrap.clientWidth / 2 - 100 + (Math.random() * 80 - 40))),
-    y: Math.max(20, Math.min(BOARD_H - 160, wrap.scrollTop + wrap.clientHeight / 2 - 60 + (Math.random() * 80 - 40))),
+    x: Math.max(20, Math.min(BOARD_W - 240, (wrap.clientWidth / 2 - v.tx) / v.s - 100 + (Math.random() * 80 - 40))),
+    y: Math.max(20, Math.min(BOARD_H - 160, (wrap.clientHeight / 2 - v.ty) / v.s - 60 + (Math.random() * 80 - 40))),
   };
+}
+
+/* ---- widok tablicy: przybliżanie kółkiem do kursora, przesuwanie tła ---- */
+const ZOOM_MIN = 0.2, ZOOM_MAX = 2.5;
+function boardView() {
+  if (!R.view) {
+    try { const v = JSON.parse(localStorage.getItem(`boardView:${R.room.id}`) || "null"); if (v && v.s > 0) R.view = v; } catch { /* ignore */ }
+  }
+  if (!R.view) R.view = { s: 1, tx: 0, ty: 0, auto: true };
+  return R.view;
+}
+const saveBoardView = debounce(() => { try { localStorage.setItem(`boardView:${R.room.id}`, JSON.stringify({ s: R.view.s, tx: R.view.tx, ty: R.view.ty })); } catch { /* ignore */ } }, 400);
+function clampView(v, wrap) {
+  const W = wrap.clientWidth, H = wrap.clientHeight, M = 120;
+  v.s = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.s));
+  const bw = BOARD_W * v.s, bh = BOARD_H * v.s;
+  v.tx = bw + 2 * M <= W ? (W - bw) / 2 : Math.min(M, Math.max(W - bw - M, v.tx));
+  v.ty = bh + 2 * M <= H ? (H - bh) / 2 : Math.min(M, Math.max(H - bh - M, v.ty));
+  return v;
+}
+function applyBoardView(save = true) {
+  const wrap = $(".board-wrap"), board = $("#board");
+  if (!wrap || !board || !R) return;
+  const v = clampView(boardView(), wrap);
+  board.style.transform = `translate(${v.tx}px, ${v.ty}px) scale(${v.s})`;
+  wrap.style.setProperty("--zoom", v.s);
+  const z = $("#zoomVal"); if (z) z.textContent = Math.round(v.s * 100) + "%";
+  if (save) saveBoardView();
+}
+function zoomAt(cx, cy, factor) {
+  const v = boardView();
+  const ns = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.s * factor));
+  const px = (cx - v.tx) / v.s, py = (cy - v.ty) / v.s;
+  v.s = ns; v.tx = cx - px * ns; v.ty = cy - py * ns; v.auto = false;
+  applyBoardView();
+}
+function fitBoard() {
+  const wrap = $(".board-wrap");
+  if (!wrap) return;
+  const its = [...$$(".card", $("#board"))];
+  const v = boardView(); v.auto = false;
+  if (!its.length) { v.s = 1; v.tx = 0; v.ty = 0; applyBoardView(); return; }
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  its.forEach(el => { const x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+    x1 = Math.min(x1, x); y1 = Math.min(y1, y); x2 = Math.max(x2, x + el.offsetWidth); y2 = Math.max(y2, y + el.offsetHeight); });
+  const pad = 60, W = wrap.clientWidth, H = wrap.clientHeight;
+  v.s = Math.min(1.2, Math.max(ZOOM_MIN, Math.min(W / (x2 - x1 + 2 * pad), H / (y2 - y1 + 2 * pad))));
+  v.tx = W / 2 - ((x1 + x2) / 2) * v.s; v.ty = H / 2 - ((y1 + y2) / 2) * v.s;
+  applyBoardView();
+}
+function bindBoardView() {
+  const wrap = $(".board-wrap");
+  if (!wrap) return;
+  wrap.addEventListener("wheel", e => {
+    e.preventDefault();
+    const r = wrap.getBoundingClientRect();
+    const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-Math.max(-300, Math.min(300, dy)) * (e.ctrlKey ? 0.01 : 0.0018)));
+  }, { passive: false });
+  const ptrs = new Map();
+  let pan = null, pinch = null;
+  const onBg = (e) => !e.target.closest(".card") && !e.target.closest("[data-link]");
+  wrap.addEventListener("pointerdown", e => {
+    if (e.button !== undefined && e.button !== 0 && e.pointerType === "mouse") return;
+    if (!onBg(e)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    wrap.setPointerCapture(e.pointerId);
+    const v = boardView();
+    if (ptrs.size === 1) { pan = { x: e.clientX, y: e.clientY, tx: v.tx, ty: v.ty }; wrap.classList.add("panning"); }
+    else if (ptrs.size === 2) {
+      pan = null;
+      const [a, b] = [...ptrs.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, s: v.s };
+    }
+    if (document.activeElement?.matches?.("textarea")) document.activeElement.blur();
+  });
+  wrap.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const v = boardView();
+    if (pinch && ptrs.size >= 2) {
+      const [a, b] = [...ptrs.values()], r = wrap.getBoundingClientRect();
+      const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      zoomAt((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, (pinch.s * d / pinch.d) / v.s);
+    } else if (pan) {
+      v.tx = pan.tx + e.clientX - pan.x; v.ty = pan.ty + e.clientY - pan.y; v.auto = false;
+      applyBoardView();
+    }
+  });
+  const up = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (!ptrs.size) { pan = null; wrap.classList.remove("panning"); }
+    else if (ptrs.size === 1 && !pan) { const [p] = [...ptrs.values()], v = boardView(); pan = { x: p.x, y: p.y, tx: v.tx, ty: v.ty }; }
+  };
+  wrap.addEventListener("pointerup", up);
+  wrap.addEventListener("pointercancel", up);
+  if (!wrap.__ro && window.ResizeObserver) { wrap.__ro = new ResizeObserver(() => applyBoardView(false)); wrap.__ro.observe(wrap); }
 }
 
 async function pinDoc(docId) {
@@ -2254,7 +2353,8 @@ function renderBoard(v) {
   <div class="boardbar">
     <button class="btn" id="addNote">＋ Karteczka</button>
     <button class="btn ${R.linkMode ? "primary" : ""}" id="linkMode">🧵 ${R.linkMode ? "Łączenie: kliknij 2 elementy" : "Połącz nitką"}</button>
-    <span class="small">Przypinaj dokumenty z Akt przyciskiem 📌. Przeciągaj elementy; kliknij nitkę, by ją usunąć.</span>
+    <span class="zoombar"><button class="btn tiny ghost" id="zoomOut" title="Oddal">−</button><span id="zoomVal" class="small">100%</span><button class="btn tiny ghost" id="zoomIn" title="Przybliż">＋</button><button class="btn tiny ghost" id="zoomFit" title="Pokaż wszystko">⤢ Wszystko</button></span>
+    <span class="small board-help">🖱 Kółko — przybliżanie do kursora · przeciągnij tło — przesuwanie · przeciągaj elementy · kliknij nitkę, by ją usunąć.</span>
   </div>
   <div class="board-wrap"><div class="board" id="board" style="width:${BOARD_W}px;height:${BOARD_H}px">
     <svg class="links" id="links" width="${BOARD_W}" height="${BOARD_H}"></svg>
@@ -2262,6 +2362,13 @@ function renderBoard(v) {
   const board = $("#board");
   R.items.forEach(it => board.appendChild(cardEl(it)));
   requestAnimationFrame(drawLinks);
+  bindBoardView();
+  applyBoardView(false);
+  if (boardView().auto && R.items.size) requestAnimationFrame(() => requestAnimationFrame(fitBoard));
+  const zc = (f) => { const w = $(".board-wrap"); zoomAt(w.clientWidth / 2, w.clientHeight / 2, f); };
+  $("#zoomIn").addEventListener("click", () => zc(1.25));
+  $("#zoomOut").addEventListener("click", () => zc(0.8));
+  $("#zoomFit").addEventListener("click", fitBoard);
   $("#addNote").addEventListener("click", async () => {
     const pos = boardCenter();
     try {
@@ -2340,8 +2447,9 @@ function bindCard(el) {
   el.addEventListener("pointermove", e => {
     if (!start) return;
     const it = R.items.get(id);
-    const dx = e.clientX - start.x, dy = e.clientY - start.y;
-    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    const sc = boardView().s;
+    const dx = (e.clientX - start.x) / sc, dy = (e.clientY - start.y) / sc;
+    if (Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) > 3) moved = true;
     it.x = Math.max(0, Math.min(BOARD_W - el.offsetWidth, start.ox + dx));
     it.y = Math.max(0, Math.min(BOARD_H - el.offsetHeight, start.oy + dy));
     el.style.left = it.x + "px"; el.style.top = it.y + "px";

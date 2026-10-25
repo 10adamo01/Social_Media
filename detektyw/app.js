@@ -542,7 +542,7 @@ function startRoomTimers() {
   roomTimer = setInterval(() => { const el = $("#timer"); if (el) { el.textContent = timerText(); el.classList.toggle("over", timerOver()); } }, 1000);
   storyTimer = setInterval(() => { loadStory(true); if (R?.room?.rival) loadRival(true); }, 30000);
 }
-function stopRoomTimers() { clearInterval(roomTimer); clearInterval(storyTimer); roomTimer = storyTimer = null; }
+function stopRoomTimers() { clearInterval(roomTimer); clearInterval(storyTimer); roomTimer = storyTimer = null; if (typeof stopSync === "function") stopSync(); }
 function openEditor(c, source) {
   try { localStorage.setItem("edytor", JSON.stringify({ c, source: source || { kind: "file" }, sel: "info" })); } catch { toast("Za mało miejsca w przeglądarce, żeby otworzyć edytor.", "error"); return; }
   if (location.hash.startsWith("#/edytor")) window.renderEditor?.(); else location.hash = "#/edytor";
@@ -1058,6 +1058,8 @@ async function openRoom(id) {
     subscribeRoom(id);
     renderRoom();
     startRoomTimers();
+    startSync();
+    setTimeout(() => ping("members"), 1500);
     maybeShowFolder(() => maybePopupStory());
   } catch (e) {
     console.error(e);
@@ -1124,6 +1126,7 @@ function subscribeRoom(id) {
     if (R.tab === "rozwiazanie") renderTab();
   });
   on("room_events", "INSERT", f, async p => {
+    if (R.events.some(e => e.id === p.new.id)) return;
     R.events.unshift(p.new);
     await ensureProfiles([p.new.user_id]);
     if (p.new.kind === "case_updated") await reloadCase(p.new.user_id !== me.id);
@@ -1168,6 +1171,8 @@ function subscribeRoom(id) {
   on("room_votes", "INSERT", f, p => { R.votes.set(p.new.user_id, p.new.version); renderVotes(); });
   on("room_votes", "UPDATE", f, p => { R.votes.set(p.new.user_id, p.new.version); renderVotes(); });
   on("room_votes", "DELETE", null, p => { if (p.old?.room_id === id && p.old.user_id) { R.votes.delete(p.old.user_id); renderVotes(); } });
+  // Drugi, niezależny kanał: gracz po swojej zmianie wysyła sygnał „odśwież” do reszty drużyny
+  channel.on("broadcast", { event: "sync" }, ({ payload }) => scheduleRefresh(payload?.kinds || []));
   channel.on("presence", { event: "sync" }, () => {
     const st = channel.presenceState();
     R.presence = {};
@@ -1176,10 +1181,159 @@ function subscribeRoom(id) {
     if (aktaShown()) updateViewers();
   });
   channel.subscribe(async status => {
-    if (status === "SUBSCRIBED") trackPresence();
-    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") toast("Problem z połączeniem na żywo — odśwież stronę, jeśli zmiany innych się nie pojawiają.", "error", 6000);
+    if (status === "SUBSCRIBED") { trackPresence(); scheduleRefresh(ALL_KINDS); }
+    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
+      console.warn("realtime:", status);
   });
 }
+/* ---- synchronizacja: sygnały od drużyny + okresowe dociąganie zmian ---- */
+const ALL_KINDS = ["board", "notes", "timeline", "hl", "unlocks", "hints", "draft", "conf", "room", "events", "members"];
+let pendingKinds = new Set(), refreshTimer = null, syncTimer = null, refreshing = false;
+function ping(...kinds) {
+  if (!channel) return;
+  try { channel.send({ type: "broadcast", event: "sync", payload: { kinds: [...kinds, "events"] } }); } catch { /* ignore */ }
+}
+function scheduleRefresh(kinds) {
+  (kinds || []).forEach(k => pendingKinds.add(k));
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(runRefresh, 250);
+}
+async function runRefresh() {
+  if (!R || refreshing) { if (pendingKinds.size) refreshTimer = setTimeout(runRefresh, 400); return; }
+  const kinds = [...pendingKinds]; pendingKinds.clear();
+  refreshing = true;
+  const roomId = R.room.id;
+  try {
+    for (const k of kinds) {
+      if (!R || R.room.id !== roomId) break;
+      try { await REFRESH[k]?.(roomId); } catch (e) { console.warn("sync", k, e); }
+    }
+  } finally { refreshing = false; }
+}
+function startSync() {
+  stopSync();
+  syncTimer = setInterval(() => { if (document.visibilityState === "visible") scheduleRefresh(ALL_KINDS); }, 15000);
+}
+function stopSync() { clearInterval(syncTimer); clearTimeout(refreshTimer); syncTimer = null; pendingKinds.clear(); }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && R) scheduleRefresh(ALL_KINDS); });
+window.addEventListener("focus", () => { if (R) scheduleRefresh(ALL_KINDS); });
+
+function boardRefreshView() {
+  const board = $("#board");
+  if (!board) return;
+  $$(".card", board).forEach(el => { if (!R.items.has(el.dataset.id)) el.remove(); });
+  R.items.forEach(it => { if (R.dragging !== it.id) upsertCard(it); });
+  drawLinks();
+}
+const REFRESH = {
+  async board(id) {
+    const [items, links] = await Promise.all([
+      q(sb.from("board_items").select("*").eq("room_id", id)),
+      q(sb.from("board_links").select("*").eq("room_id", id)),
+    ]);
+    const local = R.items;
+    R.items = new Map(items.map(i => {
+      const old = local.get(i.id);
+      if (old && R.dragging === i.id) return [i.id, old];
+      const ta = $(`.card[data-id="${i.id}"] textarea`);
+      if (old && ta && document.activeElement === ta) return [i.id, { ...i, text: old.text }];
+      return [i.id, i];
+    }));
+    R.links = new Map(links.map(l => [l.id, l]));
+    await ensureProfiles(items.map(i => i.created_by));
+    boardRefreshView();
+  },
+  async notes(id) {
+    const row = await q(sb.from("room_notes").select("*").eq("room_id", id).maybeSingle());
+    if (!row || (R.notes.updated_at === row.updated_at && R.notes.text === row.text)) return;
+    const ta = $("#notesArea");
+    if (ta && Date.now() - R.notesLocalEdit < 2500) return;
+    R.notes = row;
+    if (ta && ta.value !== row.text) {
+      const focused = document.activeElement === ta, a = ta.selectionStart, b = ta.selectionEnd;
+      ta.value = row.text;
+      if (focused) { ta.selectionStart = Math.min(a, ta.value.length); ta.selectionEnd = Math.min(b, ta.value.length); }
+    }
+    renderNotesStatus();
+  },
+  async timeline(id) {
+    const rows = await q(sb.from("room_timeline").select("*").eq("room_id", id));
+    const sig = m => [...m.values()].map(t => t.id + t.updated_at).sort().join("|");
+    const next = new Map(rows.map(t => [t.id, t]));
+    if (sig(next) === sig(R.timeline)) return;
+    R.timeline = next;
+    await ensureProfiles(rows.map(t => t.created_by));
+    if (R.tab === "os") renderTimelineList();
+  },
+  async hl(id) {
+    const rows = await q(sb.from("room_highlights").select("*").eq("room_id", id));
+    if (rows.length === R.highlights.size && rows.every(h => R.highlights.has(h.id))) return;
+    R.highlights = new Map(rows.map(h => [h.id, h]));
+    await ensureProfiles(rows.map(h => h.created_by));
+    if (!$("#selbar") || $("#selbar").hidden) refreshHighlights();
+  },
+  async unlocks(id) {
+    const list = await q(sb.rpc("get_unlocked", { p_room: id }));
+    const ids = new Set(list.map(u => u.id));
+    if (ids.size === R.unlockIds.size && [...ids].every(x => R.unlockIds.has(x))) return;
+    R.unlocked = list; R.unlockIds = ids;
+    renderAktaPane();
+    loadStory(true);
+  },
+  async hints(id) {
+    const rows = await q(sb.from("room_hints").select("*").eq("room_id", id).order("used_at"));
+    if (rows.length === R.hints.length) return;
+    R.hints = rows;
+    if (R.tab === "rozwiazanie" && R.room.status !== "solved") renderTab();
+  },
+  async draft(id) {
+    const [d, votes] = await Promise.all([
+      q(sb.from("room_drafts").select("*").eq("room_id", id).maybeSingle()),
+      q(sb.from("room_votes").select("*").eq("room_id", id)),
+    ]);
+    const vmap = new Map(votes.map(x => [x.user_id, x.version]));
+    const votesChanged = vmap.size !== R.votes.size || [...vmap].some(([u, v]) => R.votes.get(u) !== v);
+    if (d && (d.version !== R.draft.version || JSON.stringify(d.answers) !== JSON.stringify(R.draft.answers))) onRemoteDraft(d);
+    if (votesChanged) { R.votes = vmap; renderVotes(); }
+  },
+  async conf() { if (R.caseData.conf_count) await loadConf(true); },
+  async room(id) {
+    const row = await q(sb.from("rooms").select("*").eq("id", id).maybeSingle());
+    if (!row) return;
+    const was = R.room.status, wasRival = R.room.rival;
+    R.room = { ...R.room, ...row };
+    if ((row.rival || null) !== (wasRival || null)) { await loadRival(false); updateRivalUI(); }
+    if (was !== "solved" && row.status === "solved") {
+      await loadSolution();
+      toast("🔓 Drużyna wysłała odpowiedź! Zobacz wynik w zakładce <b>Rozwiązanie</b>.", "ok", 6000);
+      SND.play("win");
+      renderRoom();
+    }
+  },
+  async events(id) {
+    const rows = await q(sb.from("room_events").select("*").eq("room_id", id).order("id", { ascending: false }).limit(150));
+    const known = new Set(R.events.map(e => e.id));
+    const fresh = rows.filter(e => !known.has(e.id)).reverse();
+    if (!fresh.length) return;
+    await ensureProfiles(fresh.map(e => e.user_id));
+    for (const ev of fresh) {
+      R.events.unshift(ev);
+      if (ev.kind === "case_updated" && ev.user_id !== me.id) await reloadCase(true);
+      if (ev.user_id !== me.id && Date.now() - new Date(ev.created_at).getTime() < 120000) eventToast(ev);
+    }
+    R.events.sort((a, b) => b.id - a.id);
+    if (R.tab === "notatki") renderEventLog();
+  },
+  async members(id) {
+    const rows = await q(sb.from("room_members").select("user_id, profiles(name, avatar)").eq("room_id", id));
+    if (rows.length === R.members.size && rows.every(m => R.members.has(m.user_id))) return;
+    R.members = new Map(rows.map(m => [m.user_id, m.profiles || { name: "?" }]));
+    rows.forEach(m => R.profiles.set(m.user_id, m.profiles || { name: "?" }));
+    renderPresence();
+    if (R.tab === "notatki") renderTab(); else renderVotes();
+  },
+};
+
 function trackPresence() {
   if (!channel) return;
   channel.track({ name: me.name, avatar: me.avatar, viewing: aktaShown() ? R.docId : R?.tab, at: Date.now() }).catch(() => {});
@@ -1453,6 +1607,7 @@ function renderAkta(v) {
     const btn = $("button", f); btn.disabled = true;
     try {
       const ok = await q(sb.rpc("try_unlock", { p_room: R.room.id, p_unlock: f.dataset.unlock, p_answer: ans }));
+      ping("unlocks");
       if (ok) {
         R.unlocked = await q(sb.rpc("get_unlocked", { p_room: R.room.id }));
         R.unlockIds = new Set(R.unlocked.map(u => u.id));
@@ -1515,6 +1670,7 @@ async function pinDoc(docId) {
   const pos = R.tab === "tablica" ? boardCenter() : { x: 80 + (R.items.size % 8) * 230, y: 80 + Math.floor(R.items.size / 8) * 170 };
   try {
     const row = await q(sb.from("board_items").insert({ room_id: R.room.id, kind: "doc", ref: docId, x: pos.x, y: pos.y }).select().single());
+    ping("board");
     R.items.set(row.id, row); upsertCard(row);
     toast("📌 Przypięto na tablicy.", "ok");
   } catch (e) { toast(errMsg(e), "error"); }
@@ -1537,6 +1693,7 @@ function renderBoard(v) {
     const pos = boardCenter();
     try {
       const row = await q(sb.from("board_items").insert({ room_id: R.room.id, kind: "note", text: "", color: COLORS[R.items.size % COLORS.length], x: pos.x, y: pos.y }).select().single());
+      ping("board");
       R.items.set(row.id, row); upsertCard(row);
       setTimeout(() => $(`.card[data-id="${row.id}"] textarea`)?.focus(), 50);
     } catch (e) { toast(errMsg(e), "error"); }
@@ -1546,7 +1703,7 @@ function renderBoard(v) {
     const line = e.target.closest("[data-link]");
     if (!line) return;
     if (!await confirmBox("Usunąć tę nitkę?", "Usuń")) return;
-    try { await q(sb.from("board_links").delete().eq("id", line.dataset.link)); R.links.delete(line.dataset.link); drawLinks(); }
+    try { await q(sb.from("board_links").delete().eq("id", line.dataset.link)); R.links.delete(line.dataset.link); drawLinks(); ping("board"); }
     catch (err) { toast(errMsg(err), "error"); }
   });
 }
@@ -1622,7 +1779,7 @@ function bindCard(el) {
     start = null; el.classList.remove("dragging");
     const it = R.items.get(id);
     if (moved) {
-      try { await q(sb.from("board_items").update({ x: it.x, y: it.y, updated_at: new Date().toISOString() }).eq("id", id)); }
+      try { await q(sb.from("board_items").update({ x: it.x, y: it.y, updated_at: new Date().toISOString() }).eq("id", id)); ping("board"); }
       catch (e) { toast(errMsg(e), "error"); }
     }
     setTimeout(() => { if (R.dragging === id) R.dragging = null; }, 300);
@@ -1638,7 +1795,7 @@ function bindCard(el) {
     } else if (b.dataset.act === "del") {
       if (!await confirmBox(it.kind === "doc" ? "Zdjąć dokument z tablicy?" : it.kind === "quote" ? "Usunąć cytat z tablicy?" : "Usunąć karteczkę?", "Usuń")) return;
       try {
-        await q(sb.from("board_items").delete().eq("id", id));
+        await q(sb.from("board_items").delete().eq("id", id)); ping("board");
         R.items.delete(id);
         [...R.links.values()].forEach(l => { if (l.a === id || l.b === id) R.links.delete(l.id); });
         el.remove(); drawLinks();
@@ -1646,13 +1803,13 @@ function bindCard(el) {
     } else if (b.dataset.act === "color") {
       const nc = COLORS[(COLORS.indexOf(it.color) + 1) % COLORS.length];
       it.color = nc; upsertCard(it);
-      try { await q(sb.from("board_items").update({ color: nc }).eq("id", id)); } catch (err) { toast(errMsg(err), "error"); }
+      try { await q(sb.from("board_items").update({ color: nc }).eq("id", id)); ping("board"); } catch (err) { toast(errMsg(err), "error"); }
     }
   });
   const ta = $("textarea", el);
   if (ta) {
     const save = debounce(async () => {
-      try { await q(sb.from("board_items").update({ text: ta.value, updated_at: new Date().toISOString() }).eq("id", id)); }
+      try { await q(sb.from("board_items").update({ text: ta.value, updated_at: new Date().toISOString() }).eq("id", id)); ping("board"); }
       catch (err) { toast(errMsg(err), "error"); }
     }, 600);
     const grow = () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight + 2, 320) + "px"; drawLinks(); };
@@ -1674,6 +1831,7 @@ async function linkClick(id) {
   if ([...R.links.values()].some(l => (l.a === a && l.b === b) || (l.a === b && l.b === a))) { toast("Te elementy są już połączone.", "info"); return; }
   try {
     const row = await q(sb.from("board_links").insert({ room_id: R.room.id, a, b }).select().single());
+    ping("board");
     R.links.set(row.id, row); drawLinks();
   } catch (e) { toast(errMsg(e), "error"); }
 }
@@ -1736,7 +1894,7 @@ function renderNotes(v) {
     try {
       const row = await q(sb.from("room_notes").update({ text: ta.value, updated_by: me.id, updated_at: new Date().toISOString() })
         .eq("room_id", R.room.id).select().single());
-      R.notes = row; renderNotesStatus();
+      R.notes = row; renderNotesStatus(); ping("notes");
     } catch (e) { toast("Nie zapisano notatek: " + errMsg(e), "error"); }
   }, 700);
   ta.addEventListener("input", () => { R.notesLocalEdit = Date.now(); $("#notesStatus").textContent = "zapisywanie…"; save(); });
@@ -1748,7 +1906,7 @@ function renderNotes(v) {
     if (errs.length) { toast(`Plik ma błędy (${errs.length}): ${esc(errs.slice(0, 3).join(" · "))}${errs.length > 3 ? " …" : ""}`, "error", 9000); return; }
     if (!await confirmBox(`Podmienić sprawę na <b>${esc(c.title)}</b>? Wszyscy w pokoju zobaczą nową wersję akt.`, "Podmień")) return;
     const { pub, sec } = splitCase(c);
-    try { await q(sb.rpc("replace_room_case", { p_room: R.room.id, p_pub: pub, p_sec: sec })); toast("Sprawa zaktualizowana.", "ok"); await reloadCase(false); }
+    try { await q(sb.rpc("replace_room_case", { p_room: R.room.id, p_pub: pub, p_sec: sec })); toast("Sprawa zaktualizowana.", "ok"); await reloadCase(false); ping("events"); }
     catch (err) { toast(errMsg(err), "error", 6000); }
   });
   $("#editRoomCase")?.addEventListener("click", async () => {
@@ -1761,7 +1919,7 @@ function renderNotes(v) {
   renderRivalPanel();
   $("#leaveRoom").addEventListener("click", async () => {
     if (!await confirmBox("Opuścić ten pokój? Wrócisz tylko przez nowe zaproszenie. Jeśli jesteś ostatni, pokój zostanie usunięty.", "Opuść")) return;
-    try { await q(sb.rpc("leave_room", { p_room: R.room.id })); location.hash = "#/"; } catch (e) { toast(errMsg(e), "error"); }
+    try { await q(sb.rpc("leave_room", { p_room: R.room.id })); ping("members"); location.hash = "#/"; } catch (e) { toast(errMsg(e), "error"); }
   });
   renderNotesStatus(); renderEventLog();
 }
@@ -1826,6 +1984,7 @@ function renderAnswer(v) {
     const ans = collect();
     try {
       const ver = await q(sb.rpc("save_draft", { p_room: R.room.id, p_answers: ans }));
+      ping("draft");
       R.draft = { ...R.draft, answers: ans, version: ver, updated_by: me.id };
       [...R.votes.entries()].forEach(([u, vv]) => { if (vv !== ver) R.votes.delete(u); });
       renderVotes();
@@ -1843,6 +2002,7 @@ function renderAnswer(v) {
     try {
       await R.flushDraft();
       await q(sb.rpc("use_hint", { p_room: R.room.id, p_question: b.dataset.hint }));
+      ping("hints");
       R.hints = await q(sb.from("room_hints").select("*").eq("room_id", R.room.id).order("used_at"));
       renderAnswer(v);
     } catch (e) { toast(errMsg(e), "error"); b.disabled = false; }
@@ -1870,12 +2030,12 @@ function renderVotes() {
     <p class="small">Ktoś nie gra? Może opuścić pokój (zakładka Notatki) — wtedy nie blokuje głosowania. Założyciel pokoju może wysłać odpowiedź, gdy „za” jest ponad połowa drużyny.</p>`;
   $("#voteBtn", el)?.addEventListener("click", voteNow);
   $("#unvoteBtn", el)?.addEventListener("click", async () => {
-    try { await q(sb.rpc("unvote_answers", { p_room: R.room.id })); R.votes.delete(me.id); renderVotes(); }
+    try { await q(sb.rpc("unvote_answers", { p_room: R.room.id })); R.votes.delete(me.id); renderVotes(); ping("draft"); }
     catch (e) { toast(errMsg(e), "error"); }
   });
   $("#forceBtn", el)?.addEventListener("click", async () => {
     if (!await confirmBox("Wysłać odpowiedź bez kompletu głosów? Tego nie da się cofnąć.", "Wysyłam")) return;
-    try { await afterSubmit(await q(sb.rpc("force_submit", { p_room: R.room.id }))); }
+    try { const r_ = await q(sb.rpc("force_submit", { p_room: R.room.id })); ping("room"); await afterSubmit(r_); }
     catch (e) { toast(errMsg(e), "error", 6000); }
   });
 }
@@ -1888,6 +2048,7 @@ async function voteNow() {
   const btn = $("#voteBtn"); if (btn) btn.disabled = true;
   try {
     const res = await q(sb.rpc("vote_answers", { p_room: R.room.id, p_version: R.draft.version }));
+    ping("draft", "room");
     if (res.status === "submitted") await afterSubmit(res.result);
     else { R.votes.set(me.id, R.draft.version); renderVotes(); toast(`✅ Głos zapisany (${res.votes}/${res.members}). Czekamy na resztę drużyny.`, "ok"); }
   } catch (e) { toast(errMsg(e), "error", 6000); if (btn) btn.disabled = false; }
@@ -2017,6 +2178,7 @@ function renderTimeline(v) {
     if (!row.title) return;
     const btn = $("#tlSubmit"); btn.disabled = true;
     try {
+      setTimeout(() => ping("timeline"), 400);
       if (R.tlEditing) {
         const upd = await q(sb.from("room_timeline").update({ ...row, updated_at: new Date().toISOString() }).eq("id", R.tlEditing).select().single());
         R.timeline.set(upd.id, upd);
@@ -2042,7 +2204,7 @@ function renderTimeline(v) {
       f.scrollIntoView({ behavior: "smooth", block: "start" });
     } else if (del) {
       if (!await confirmBox("Usunąć to wydarzenie z osi czasu?", "Usuń")) return;
-      try { await q(sb.from("room_timeline").delete().eq("id", del.dataset.tlDel)); R.timeline.delete(del.dataset.tlDel); renderTimelineList(); }
+      try { await q(sb.from("room_timeline").delete().eq("id", del.dataset.tlDel)); R.timeline.delete(del.dataset.tlDel); renderTimelineList(); ping("timeline"); }
       catch (err) { toast(errMsg(err), "error"); }
     } else if (doc) {
       openDoc(doc.dataset.tlDoc);
@@ -2177,6 +2339,7 @@ async function doConfront(a, b) {
   if (!a || !b || a === b) return toast("Wybierz dwa różne dokumenty.", "error");
   try {
     const res = await q(sb.rpc("try_confront", { p_room: R.room.id, p_a: a, p_b: b }));
+    ping("conf");
     if (res.ok && res.already) { toast(`Tę sprzeczność już znaleźliście: <b>${inline(res.title || "")}</b>`, "info"); return; }
     if (res.ok) {
       SND.play("stamp");
@@ -2240,6 +2403,7 @@ function renderRivalPanel() {
       e.preventDefault();
       try {
         await q(sb.rpc("challenge_room", { p_room: R.room.id, p_code: e.target.code.value }));
+        ping("room");
         const rm = await q(sb.from("rooms").select("rival").eq("id", R.room.id).single());
         R.room.rival = rm.rival; await loadRival(false); SND.play("ding"); toast("⚔️ Wyzwanie rzucone!", "ok");
       } catch (err) { toast(errMsg(err), "error", 6000); }
@@ -2263,7 +2427,7 @@ function renderRivalPanel() {
   $("#rivalRefresh", el).addEventListener("click", () => loadRival(true));
   $("#rivalEnd", el)?.addEventListener("click", async () => {
     if (!await confirmBox("Zakończyć rywalizację dla obu drużyn?", "Zakończ")) return;
-    try { await q(sb.rpc("end_rivalry", { p_room: R.room.id })); R.room.rival = null; R.rival = null; updateRivalUI(); } catch (e) { toast(errMsg(e), "error"); }
+    try { await q(sb.rpc("end_rivalry", { p_room: R.room.id })); R.room.rival = null; R.rival = null; updateRivalUI(); ping("room"); } catch (e) { toast(errMsg(e), "error"); }
   });
 }
 
@@ -2367,6 +2531,7 @@ async function selAction(a) {
   try {
     if (a === "hl") {
       const row = await q(sb.from("room_highlights").insert({ room_id: R.room.id, doc_id: st.docId, quote: st.text }).select().single());
+      ping("hl");
       R.highlights.set(row.id, row);
       window.getSelection()?.removeAllRanges();
       refreshHighlights();
@@ -2374,6 +2539,7 @@ async function selAction(a) {
     } else if (a === "pin") {
       const pos = { x: 80 + (R.items.size % 8) * 230, y: 80 + Math.floor(R.items.size / 8) * 170 };
       const row = await q(sb.from("board_items").insert({ room_id: R.room.id, kind: "quote", ref: st.docId, text: st.text, x: pos.x, y: pos.y }).select().single());
+      ping("board");
       R.items.set(row.id, row); upsertCard(row);
       toast("📌 Cytat przypięty na tablicy.", "ok");
     } else if (a === "tl") {
@@ -2385,7 +2551,7 @@ async function selAction(a) {
       return;
     } else if (a === "del") {
       if (!await confirmBox("Usunąć to zakreślenie?", "Usuń")) return hideSelBar();
-      await q(sb.from("room_highlights").delete().eq("id", st.id));
+      await q(sb.from("room_highlights").delete().eq("id", st.id)); ping("hl");
       R.highlights.delete(st.id);
       refreshHighlights();
     }

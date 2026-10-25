@@ -792,6 +792,7 @@ async function route() {
   if (!me) { R = null; renderLogin(notConfigured); return; }
   let m;
   if (h.startsWith("#/zdjecia")) { leaveChannel(); R = null; renderPhotoAdmin(); return; }
+  if (h.startsWith("#/pokoje")) { leaveChannel(); R = null; renderRoomsAdmin(); return; }
   if ((m = h.match(/^#\/profil(?:\/([0-9a-zA-Z-]+))?/))) { leaveChannel(); R = null; renderProfile(m[1] || null); return; }
   if ((m = h.match(/^#\/join\/([A-Za-z0-9]+)/))) {
     try {
@@ -960,6 +961,94 @@ function plural(n, one, few, many) {
   return d >= 2 && d <= 4 && (t < 12 || t > 14) ? few : many;
 }
 
+
+
+/* ------------------------------------------------------------------ */
+/*  Admin: wszystkie pokoje                                            */
+/* ------------------------------------------------------------------ */
+let adminRoomsTimer = null;
+async function renderRoomsAdmin() {
+  if (!isAdmin) { toast("Ta strona jest dostępna tylko dla admina.", "error"); location.replace("#/"); return; }
+  let rows = [], filter = sessionStorage.getItem("admRoomsF") || "active", search = "";
+  app.innerHTML = `
+  <div class="lobby adm-rooms">
+    <header class="lobby-top">${homeLink()}<div class="brand">🔎 ${esc(SITE)}</div><a class="btn tiny ghost" href="#/">← Lobby</a>
+      <button class="btn tiny ghost ${streamer ? "on" : ""}" id="streamBtn" title="Tryb streamera — ukrywa kody pokoi">🎥</button>${topbarUser()}</header>
+    <main class="profile-main">
+      <section class="panel">
+        <div class="row wrap between"><h2>🏢 Wszystkie pokoje</h2><button class="btn tiny ghost" id="admRefresh">↻ Odśwież</button></div>
+        <div id="admSummary" class="stats small-stats"></div>
+        <div class="row wrap adm-tools">
+          <div class="row wrap" id="admFilter"></div>
+          <input id="admSearch" placeholder="Szukaj: drużyna, sprawa, gracz, kod…" autocomplete="off">
+        </div>
+      </section>
+      <div id="admList" class="adm-list"><p class="small">Wczytywanie…</p></div>
+    </main>
+  </div>`;
+  bindLogout();
+  $("#streamBtn").addEventListener("click", () => { toggleStreamer(); $("#streamBtn").classList.toggle("on", streamer); draw(); });
+  const ago = (iso) => iso ? timeAgo(iso) : "—";
+  const isIdle = (r) => r.status === "active" && Date.now() - new Date(r.last_activity).getTime() > 7 * 864e5;
+  const drawSummary = () => {
+    const act = rows.filter(r => r.status === "active");
+    const players = new Set(act.flatMap(r => r.members.map(m => m.id)));
+    const today = rows.filter(r => Date.now() - new Date(r.last_activity).getTime() < 864e5).length;
+    $("#admSummary").innerHTML = [["🟢", act.length, "otwartych pokoi"], ["👥", players.size, "graczy w otwartych"], ["⚡", today, "aktywnych w 24 h"],
+      ["✅", rows.filter(r => r.status === "solved").length, "rozwiązanych"], ["💤", rows.filter(isIdle).length, "nieaktywnych 7+ dni"]]
+      .map(([i, v, l]) => `<div class="stat"><div class="stat-ico">${i}</div><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`).join("");
+    $("#admFilter").innerHTML = [["active", `Otwarte (${act.length})`], ["idle", `Nieaktywne (${rows.filter(isIdle).length})`], ["solved", `Rozwiązane (${rows.filter(r => r.status === "solved").length})`], ["all", `Wszystkie (${rows.length})`]]
+      .map(([k, l]) => `<button class="btn tiny ${filter === k ? "primary" : "ghost"}" data-f="${k}">${l}</button>`).join("");
+    $$("[data-f]", $("#admFilter")).forEach(b => b.addEventListener("click", () => { filter = b.dataset.f; sessionStorage.setItem("admRoomsF", filter); drawSummary(); draw(); }));
+  };
+  const draw = () => {
+    const qtxt = search.trim().toLowerCase();
+    const list = rows.filter(r => filter === "all" || (filter === "idle" ? isIdle(r) : r.status === filter))
+      .filter(r => !qtxt || [r.name, r.case_title, r.code, r.owner_name, ...r.members.map(m => m.name)].some(x => String(x || "").toLowerCase().includes(qtxt)));
+    $("#admList").innerHTML = list.map(r => {
+      const d = DIFF[r.difficulty || "normal"];
+      return `<section class="panel adm-room ${isIdle(r) ? "idle" : ""}" data-id="${esc(r.id)}">
+        <div class="adm-head">
+          <div><div class="adm-title">${esc(r.name || "Śledztwo")} ${r.status === "solved" ? `<span class="badge ok">rozwiązana</span>` : isIdle(r) ? `<span class="badge">nieaktywny</span>` : `<span class="badge warn">w toku</span>`}
+            ${r.rival ? `<span class="badge">⚔️ rywalizacja</span>` : ""}</div>
+            <div class="small">${r.case_private ? "📂 " : "📁 "}${esc(r.case_title || r.case_id || "?")}${r.case_private ? " <i>(własna sprawa z pliku)</i>" : ""} · ${d?.icon || ""} ${esc(d?.label || "")} · kod <b>${codeText(r.code)}</b></div></div>
+          <div class="row wrap adm-actions">
+            ${r.is_member ? `<a class="btn tiny primary" href="#/room/${esc(r.id)}">➡ Wejdź</a>` : `<button class="btn tiny ghost" data-join="${esc(r.code)}">➕ Dołącz</button>`}
+            <button class="btn tiny ghost danger" data-del="${esc(r.id)}">🗑 Usuń</button>
+          </div>
+        </div>
+        <div class="adm-members">${r.members.map(m => `<a class="userlink" href="#/profil/${esc(m.id)}" title="Profil gracza">${avatarHtml(m, 24, false)}<span>${esc(m.name || "?")}${m.id === r.owner ? ` <span class="small">(założyciel)</span>` : ""}</span></a>`).join("") || `<span class="small">brak graczy</span>`}</div>
+        <div class="adm-meta small">
+          <span title="Wnioski">🗝️ ${r.unlocks}/${r.unlocks_total}</span>
+          ${r.conf_total ? `<span title="Sprzeczności">⚔️ ${r.confronts}/${r.conf_total}</span>` : ""}
+          <span title="Podpowiedzi">💡 ${r.hints}</span><span title="Elementy na tablicy">📌 ${r.board}</span>
+          ${r.status === "solved" ? `<span title="Wynik"><b>🏅 ${esc(r.total)}/${esc(r.max)}</b></span>` : ""}
+          <span title="${esc(new Date(r.created_at).toLocaleString("pl-PL"))}">🕓 założony ${ago(r.created_at)}</span>
+          <span title="${esc(new Date(r.last_activity).toLocaleString("pl-PL"))}">⚡ ostatnia aktywność ${ago(r.last_activity)}</span>
+        </div>
+      </section>`;
+    }).join("") || `<section class="panel"><p class="empty">Brak pokoi${filter !== "all" ? " w tym widoku" : ""}${qtxt ? " pasujących do wyszukiwania" : ""}.</p></section>`;
+    $$("[data-join]", $("#admList")).forEach(b => b.addEventListener("click", async () => {
+      if (!(await confirmBox("Dołączyć do tej drużyny? Staniesz się członkiem pokoju — drużyna zobaczy Cię na liście, a przy głosowaniu nad odpowiedzią będzie potrzebny też Twój głos (możesz potem opuścić pokój w Notatkach).", "Dołącz"))) return;
+      location.hash = `#/join/${b.dataset.join}`;
+    }));
+    $$("[data-del]", $("#admList")).forEach(b => b.addEventListener("click", async () => {
+      const r = rows.find(x => x.id === b.dataset.del);
+      if (!(await confirmBox(`Usunąć pokój <b>${esc(r?.name || "")}</b> (${r?.members.length || 0} graczy)? Tablica, notatki i postęp drużyny zostaną skasowane. Statystyki graczy w profilach zostaną.`, "Usuń pokój"))) return;
+      try { await q(sb.rpc("admin_delete_room", { p_room: r.id })); toast("Pokój usunięty.", "ok"); await load(); }
+      catch (e) { toast(errMsg(e), "error", 6000); }
+    }));
+  };
+  const load = async () => {
+    try { rows = await q(sb.rpc("admin_list_rooms")) || []; drawSummary(); draw(); }
+    catch (e) { $("#admList").innerHTML = `<section class="panel"><p class="error">${esc(errMsg(e))}</p><p class="small">Jeśli to „Could not find the function”, uruchom ponownie <b>schema.sql</b> w Supabase.</p></section>`; }
+  };
+  $("#admSearch").addEventListener("input", debounce(e => { search = e.target.value; draw(); }, 150));
+  $("#admRefresh").addEventListener("click", load);
+  clearInterval(adminRoomsTimer);
+  adminRoomsTimer = setInterval(() => { if (!location.hash.startsWith("#/pokoje")) { clearInterval(adminRoomsTimer); return; } if (document.visibilityState === "visible") load(); }, 30000);
+  await load();
+}
 
 /* ------------------------------------------------------------------ */
 /*  Admin: baza zdjęć osób                                             */
@@ -1153,6 +1242,7 @@ async function renderLobby() {
         <div class="row wrap">
           <label class="btn primary file-btn">⬆ Wgraj sprawę (.json)<input type="file" id="uploadCase" accept=".json,application/json" hidden></label>
           <label class="btn ghost file-btn">👁 Podgląd pliku<input type="file" id="previewCase" accept=".json,application/json" hidden></label>
+          <a class="btn ghost" href="#/pokoje">🏢 Wszystkie pokoje</a>
           <a class="btn ghost" href="#/zdjecia">🖼 Baza zdjęć osób</a>
         </div>
         <div id="uploadInfo"></div>

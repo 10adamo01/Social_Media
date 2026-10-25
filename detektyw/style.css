@@ -96,7 +96,7 @@ input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 
 .login-sep { text-align: center; margin: 18px 0; color: var(--ink-muted); font-size: .85rem; position: relative; }
 .login-sep::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--paper-line); }
 .login-sep span { background: var(--paper); padding: 0 10px; position: relative; }
-.warn { background: #fff3d0; border: 1px solid #e0bc62; padding: 10px 12px; border-radius: 6px; }
+.login-card .warn, div.warn { background: #fff3d0; border: 1px solid #e0bc62; padding: 10px 12px; border-radius: 6px; }
 
 /* avatary i obecność */
 .ava { border-radius: 50%; object-fit: cover; display: inline-block; vertical-align: middle; flex: none; }
@@ -683,3 +683,14 @@ mark.hl-c3 { background: rgba(120, 230, 120, .5); }
 .face-card.err { border-color: #6b2b26; }
 .photos .row select { width: auto; }
 .ed-person { display: grid; grid-template-columns: 90px minmax(0,1fr); gap: 14px; align-items: start; } .ed-person .face { border-radius: 4px; }
+
+/* ---------- Admin: wszystkie pokoje ---------- */
+.adm-tools { margin-top: 14px; justify-content: space-between; }
+.adm-tools input { max-width: 340px; }
+.adm-list { display: grid; gap: 10px; }
+.adm-room.idle { opacity: .75; }
+.adm-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.adm-title { font-weight: 700; font-size: 1.05rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 2px; }
+.adm-members { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 8px; font-size: .9rem; }
+.adm-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.adm-actions { gap: 6px; }

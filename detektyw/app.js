@@ -1496,6 +1496,7 @@ function renderPreview(c, errs, onBack) {
     __solution: () => renderDoc({ title: "Rozwiązanie", blocks: c.solution || [] }),
   };
   const draw = () => {
+    const prevListScroll = $(".preview .doclist")?.scrollTop || 0;
     const doc = special[current] ? null : groups.all.find(d => d.id === current);
     app.innerHTML = `
     <div class="room preview">
@@ -1523,6 +1524,7 @@ function renderPreview(c, errs, onBack) {
         </section>
       </div>
     </div>`;
+    keepDocListScroll(app, prevListScroll);
     $("#pvBack").addEventListener("click", onBack);
     $$("[data-doc]").forEach(b => b.addEventListener("click", () => { current = b.dataset.doc; draw(); window.scrollTo(0, 0); }));
   };
@@ -2119,7 +2121,20 @@ function updateViewers() {
   $$("[data-viewers]").forEach(el => { el.innerHTML = (m[el.dataset.viewers] || []).map(p => avatarHtml(p, 18)).join(""); });
 }
 
+/* Lista dokumentów zostaje tam, gdzie była przewinięta; aktywny dokument zawsze widoczny */
+function keepDocListScroll(root, prev) {
+  const dl = $(".doclist", root);
+  if (!dl) return;
+  dl.scrollTop = prev || 0;
+  const act = $(".docitem.active", dl);
+  if (act && dl.scrollHeight > dl.clientHeight) {
+    const top = act.getBoundingClientRect().top - dl.getBoundingClientRect().top + dl.scrollTop, bottom = top + act.offsetHeight;
+    if (top < dl.scrollTop) dl.scrollTop = top - 8;
+    else if (bottom > dl.scrollTop + dl.clientHeight) dl.scrollTop = bottom - dl.clientHeight + 8;
+  }
+}
 function renderAkta(v) {
+  const prevListScroll = $(".doclist", v)?.scrollTop || 0;
   const groups = groupDocs(allDocs());
   const unl = R.caseData.unlocks || [];
   const openCount = unl.filter(u => !R.unlockIds.has(u.id)).length;
@@ -2163,6 +2178,7 @@ function renderAkta(v) {
       ${content}
     </section>
   </div>`;
+  keepDocListScroll(v, prevListScroll);
   $$("[data-doc]", v).forEach(b => b.addEventListener("click", () => {
     R.docId = b.dataset.doc; sessionStorage.setItem(`doc:${R.room.id}`, R.docId);
     renderAkta(v); trackPresence();

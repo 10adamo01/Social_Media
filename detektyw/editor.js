@@ -17,6 +17,7 @@ const TEMPLATE = () => ({
   time_limit: 90,
   intro: [{ type: "p", text: "Krótko: co się stało i dlaczego sprawa budzi wątpliwości." },
           { type: "small", text: "Wszystkie osoby, firmy i miejsca są fikcyjne." }],
+  people: [{ id: "p1", name: "Jan Kowalski", gender: "m", age: 58, role: "ofiara", note: "" }],
   documents: [{ id: "d1", no: "1", category: "Raporty", title: "Notatka z oględzin", subtitle: "", blocks: [{ type: "p", text: "Treść dokumentu…" }] }],
   unlocks: [], story: [], confrontations: [],
   questions: [
@@ -34,7 +35,7 @@ const BLOCK_TYPES = [
   ["p", "Akapit"], ["h", "Śródtytuł"], ["small", "Przypis (mały tekst)"], ["note", "Uwaga / notatka (niebieska)"],
   ["list", "Lista punktowana"], ["kv", "Tabela klucz–wartość"], ["table", "Tabela"], ["qa", "Przesłuchanie (P/O)"],
   ["receipts", "Paragony"], ["handwriting", "Notes odręczny"], ["email", "E-mail"], ["signature", "Podpis"],
-  ["stamp", "Pieczątka"], ["divider", "Linia"], ["box", "Ramka z blokami"], ["svg", "Rysunek SVG (zaawansowane)"], ["image", "Obrazek z adresu"],
+  ["person", "Karta osoby ze zdjęciem"], ["stamp", "Pieczątka"], ["divider", "Linia"], ["box", "Ramka z blokami"], ["svg", "Rysunek SVG (zaawansowane)"], ["image", "Obrazek z adresu"],
 ];
 const BT = Object.fromEntries(BLOCK_TYPES);
 function blockTemplate(t) {
@@ -49,6 +50,7 @@ function blockTemplate(t) {
     case "svg": return { type: t, svg: "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'><rect x='10' y='10' width='380' height='180' fill='none' stroke='black'/></svg>", caption: "" };
     case "image": return { type: t, src: "https://", caption: "" };
     case "box": return { type: t, title: "", blocks: [{ type: "p", text: "" }] };
+    case "person": return { type: t, person: ED.c.people?.[0]?.id || "", rows: [["Zawód", ""], ["Związek z ofiarą", ""], ["Deklarowane alibi", ""]] };
     case "divider": return { type: t };
     default: return { type: t, text: "" };
   }
@@ -63,6 +65,7 @@ const ADD = {
   doc: () => newDoc(),
   unlock: arr => ({ id: nextId(arr.map(u => u.id), "wniosek"), title: "Wniosek o …", prompt: "Pytanie, na które odpowiedź jest w aktach", placeholder: "", answers: [""], match: "exact", message: "Wniosek przyjęty. Nowy dokument w aktach.", documents: [] }),
   story: arr => ({ id: nextId(arr.map(u => u.id), "wiadomosc"), trigger: { type: "minutes", minutes: 30 }, from: "Komendant", title: "Nowa wiadomość", blocks: [{ type: "p", text: "" }], documents: [] }),
+  person: arr => ({ id: nextId(arr.map(p => p.id), "p"), name: "", gender: "m", age: 40, role: "podejrzany", note: "" }),
   conf: arr => ({ id: nextId(arr.map(u => u.id), "sprzecznosc"), title: "", a: [], b: [], points: 1, message: "" }),
   question: arr => ({ id: nextId(arr.map(u => u.id), "q"), label: "Nowe pytanie", type: "choice", points: 1, answer: "a", options: [{ id: "a", label: "" }, { id: "b", label: "" }] }),
 };
@@ -95,7 +98,7 @@ function load() {
   normalize(ED.c);
 }
 function normalize(c) {
-  ["intro", "documents", "unlocks", "story", "confrontations", "questions", "ranks", "solution"].forEach(k => { if (!Array.isArray(c[k])) c[k] = []; });
+  ["intro", "people", "documents", "unlocks", "story", "confrontations", "questions", "ranks", "solution"].forEach(k => { if (!Array.isArray(c[k])) c[k] = []; });
   if (!c.meta || typeof c.meta !== "object") c.meta = {};
   if (!c.hints || typeof c.hints !== "object") c.hints = {};
   c.questions.forEach(q => { if (!Array.isArray(c.hints[q.id])) c.hints[q.id] = []; });
@@ -116,6 +119,9 @@ function cleaned() {
   if (!c.series || !c.series.id) delete c.series;
   else c.series.episode = Number(c.series.episode) || 1;
   if (!c.unlocks.length) delete c.unlocks;
+  if (!c.people.length) delete c.people;
+  else c.people.forEach(p => { if (p.age === "" || p.age == null) delete p.age; else p.age = Number(p.age); ["role", "note", "photo"].forEach(k => { if (!p[k]) delete p[k]; }); });
+  allDocsOf(c).forEach(d => { if (!d.person) delete d.person; });
   if (!c.story.length) delete c.story;
   if (!c.confrontations.length) delete c.confrontations;
   Object.keys(c.hints).forEach(k => { if (!c.questions.some(q => q.id === k)) delete c.hints[k]; else c.hints[k] = c.hints[k].filter(h => String(h).trim()); });
@@ -161,6 +167,9 @@ function blockEd(p, b, arrPath, i) {
       ${field("Treść (akapity oddziel pustą linią)", area(`${p}.body`, (b.body || []).join("\n\n"), 6, "", "paras"))}`;
   else if (t === "svg") body = `${area(`${p}.svg`, b.svg, 6, "<svg …>", "", `class="mono"`)}${field("Podpis", inp(`${p}.caption`, b.caption))}`;
   else if (t === "image") body = `${field("Adres obrazka (https://…)", inp(`${p}.src`, b.src))}${field("Podpis", inp(`${p}.caption`, b.caption))}`;
+  else if (t === "person") body = `${field("Osoba", sel(`${p}.person`, b.person, [["", "— wybierz z listy osób —"], ...(ED.c.people || []).map(x => [x.id, `${x.name || x.id}${x.age ? `, ${x.age} l.` : ""}`])]))}
+      <p class="small">Zdjęcie, imię, wiek i rola biorą się z sekcji <b>👥 Osoby</b>. Poniżej dodatkowe informacje do karty.</p>
+      ${(b.rows || []).map((r, j) => `<div class="ed-pair">${inp(`${p}.rows.${j}.0`, r[0], "Klucz")}${area(`${p}.rows.${j}.1`, r[1], 1, "Wartość")}${btn("del", `${p}.rows`, "✕", `data-i="${j}"`)}</div>`).join("")}${btn("add", `${p}.rows`, "＋ wiersz", `data-v="pair"`)}`;
   else if (t === "box") body = `${field("Tytuł ramki", inp(`${p}.title`, b.title))}${blocksEd(`${p}.blocks`, b.blocks)}`;
   else if (t === "divider") body = `<hr>`;
   else body = `<p class="small">Nieznany typ bloku „${esc(t)}” — zostanie zachowany bez zmian.</p>`;
@@ -179,6 +188,7 @@ function docEd(p, d, ctx) {
     <datalist id="edCats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
     ${field("Tytuł", inp(`${p}.title`, d.title, "", "", "data-side"), "wide")}
     ${field("Podtytuł (kto, kiedy)", inp(`${p}.subtitle`, d.subtitle), "wide")}
+    ${(ED.c.people || []).length ? field("Zdjęcie osoby w nagłówku (np. przy przesłuchaniu)", sel(`${p}.person`, d.person || "", [["", "— bez zdjęcia —"], ...ED.c.people.map(x => [x.id, x.name || x.id])]), "wide") : ""}
     <h3>Treść</h3>${blocksEd(`${p}.blocks`, d.blocks)}`;
 }
 
@@ -240,6 +250,29 @@ function storyEd(i) {
     ${btn("adddoc", `${p}.documents`, "＋ Dokument do wiadomości", "", "tiny")}`;
 }
 
+function peopleEd() {
+  const bs = B();
+  if (bs.FACES) { bs.FACES.override = ED.c; bs.loadFaces?.(); }
+  const roles = ["ofiara", "podejrzany", "podejrzana", "świadek", "rodzina ofiary", "policjant", "policjantka", "biegły"];
+  return `<h2>👥 Osoby w sprawie</h2>
+    <p class="small">Gra sama dobierze każdej osobie zdjęcie z bazy według <b>płci</b> i <b>wieku</b>. Osoby pojawią się w aktach w <b>Kartotece osób</b>;
+      możesz też wstawić <b>kartę osoby</b> do dokumentu albo ustawić zdjęcie w nagłówku dokumentu (np. przesłuchania).
+      Nie wpisuj tu, kto jest sprawcą — ta lista jest jawna dla graczy.</p>
+    <datalist id="edRoles">${roles.map(r => `<option value="${esc(r)}">`).join("")}</datalist>
+    ${ED.c.people.map((x, i) => `<div class="ed-card ed-person">
+      <img class="face" src="${esc(bs.faceSrc ? bs.faceSrc(x.id) : "")}" alt="">
+      <div><div class="ed-head-row"><b>${esc(x.name || x.id)}</b>${moveBtns("people", i)}</div>
+      <div class="ed-grid">
+        ${field("Id", inp(`people.${i}.id`, x.id, "p1", "", "data-side"))}
+        ${field("Imię i nazwisko", inp(`people.${i}.name`, x.name, "Marta Wolska", "", "data-side"))}
+        ${field("Płeć", sel(`people.${i}.gender`, x.gender, [["k", "kobieta"], ["m", "mężczyzna"]], "", "data-rerender"))}
+        ${field("Wiek", inp(`people.${i}.age`, x.age ?? "", "41", "num", `type="number" min="1" max="120" data-rerender`))}
+        ${field("Rola", inp(`people.${i}.role`, x.role, "podejrzana", "", `list="edRoles"`))}
+      </div>
+      ${field("Krótki opis (opcjonalnie)", inp(`people.${i}.note`, x.note, "córka ofiary, właścicielka studia jogi"), "wide")}</div></div>`).join("")}
+    ${btn("add", "people", "＋ Osoba", `data-v="person"`, "tiny")}`;
+}
+
 function confEd() {
   const docs = allDocsOf(ED.c);
   const multi = (p, vals) => `<select multiple size="5" data-p="${p}" data-t="multi">${docs.map(d => `<option value="${esc(d.id)}" ${(vals || []).includes(d.id) ? "selected" : ""}>${esc(docLabel(d))}</option>`).join("")}</select>`;
@@ -282,7 +315,7 @@ function questionsEd() {
 
 /* ---------------- nawigacja ---------------- */
 function navItems() {
-  const c = ED.c, items = [["info", "ℹ️ Informacje"], ["intro", "📋 Odprawa"], ["#Dokumenty"]];
+  const c = ED.c, items = [["info", "ℹ️ Informacje"], ["intro", "📋 Odprawa"], ["people", `👥 Osoby (${c.people.length})`], ["#Dokumenty"]];
   c.documents.forEach((d, i) => items.push([`doc:${i}`, `${d.no || "?"} · ${String(d.title || "").replace(/<[^>]+>/g, "")}`, "sub"]));
   items.push(["+doc", "＋ Dokument"], ["#Wnioski"]);
   c.unlocks.forEach((u, i) => {
@@ -315,6 +348,7 @@ function renderForm() {
   else if (s === "intro") html = `<h2>📋 Odprawa (to gracze widzą na start)</h2>${blocksEd("intro", c.intro)}`;
   else if (s === "solution") html = `<h2>🔓 Rozwiązanie (widoczne po wysłaniu odpowiedzi)</h2>${blocksEd("solution", c.solution)}`;
   else if (s === "conf") html = confEd();
+  else if (s === "people") html = peopleEd();
   else if (s === "questions") html = questionsEd();
   else if ((m = s.match(/^doc:(\d+)$/)) && c.documents[+m[1]]) html = `${docEd(`documents.${m[1]}`, c.documents[+m[1]], "📄 Dokument")}<div class="ed-foot">${moveBtns("documents", +m[1], "🗑 Usuń dokument")}</div>`;
   else if ((m = s.match(/^unlock:(\d+)$/)) && c.unlocks[+m[1]]) html = unlockEd(+m[1]);

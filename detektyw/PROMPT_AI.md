@@ -26,7 +26,8 @@ JAK ZAPROJEKTOWAĆ SPRAWĘ (zrób to w myślach PRZED pisaniem JSON-a)
 6. Dodaj 2–4 sprytne detale-pułapki (przestawiony zegar, umyta druga filiżanka, wyrwana kartka z odbitym pismem, usunięty SMS, nietypowy niedopałek), ale żadnych nadprzyrodzonych wyjaśnień ani nieopisanych w aktach trucizn czy bliźniaków.
 7. Godziny, odległości, nazwiska, numery dokumentów i daty muszą się zgadzać we WSZYSTKICH dokumentach. Sprawdź to dwa razy.
 8. Wnioski (unlocks) mają nagradzać uważne czytanie: odpowiedź jest w aktach (np. „czego brakuje na biurku?”), a odblokowany dokument wnosi ważny dowód. Rozwiązanie musi być możliwe dopiero po odblokowaniu przynajmniej jednego wniosku.
-9. Zero treści drastycznych — opisy obrażeń rzeczowe, jak w raporcie. Wszystkie osoby, firmy i miejsca fikcyjne.
+9. Wypisz WSZYSTKIE ważne osoby (ofiara, podejrzani, świadkowie, prowadzący śledztwo) w liście "people" z płcią i wiekiem — gra sama dobierze im zdjęcia. Lista jest jawna: nie zdradzaj w niej, kto jest sprawcą (rola „podejrzany/podejrzana”, nie „sprawca”). Nie umieszczaj tam osób, których istnienie ma być niespodzianką.
+10. Zero treści drastycznych — opisy obrażeń rzeczowe, jak w raporcie. Wszystkie osoby, firmy i miejsca fikcyjne.
 
 Dobry zestaw dokumentów (dopasuj do fabuły): pismo przełożonego (wprowadzenie), notatka z oględzin, szkic miejsca (SVG), protokół sekcji / opinia biegłego, raport laboratorium, karty podejrzanych, 5–8 przesłuchań (podejrzani + świadkowie), logi (alarm, karta wstępu, monitoring), billing telefonu, paragony, notatnik lub wiadomości ofiary, mapa okolicy (SVG) z odległościami.
 
@@ -42,6 +43,7 @@ Zwróć DOKŁADNIE taką strukturę:
   "subtitle": "Sprawa nr …/… · Miasto, miesiąc rok",
   "meta": { "players": "1–4", "time": "60–120 min", "difficulty": "średnia", "author": "Biuro Śledcze" },
   "intro": [ BLOKI ],
+  "people": [ OSOBY ],
   "documents": [ DOKUMENTY ],
   "unlocks": [ WNIOSKI ],
   "questions": [ PYTANIA ],
@@ -55,8 +57,14 @@ Zwróć DOKŁADNIE taką strukturę:
   "solution": [ BLOKI ]
 }
 
+OSOBA (do listy "people" — gra dobiera zdjęcie według płci i wieku):
+{ "id": "kowalski", "name": "Jan Kowalski", "gender": "m", "age": 58, "role": "świadek", "note": "sąsiad ofiary" }
+- "gender": "k" (kobieta) albo "m" (mężczyzna); "age": liczba lat (zgodna z aktami!); "role": np. ofiara, podejrzany, podejrzana, świadek, prowadzący śledztwo.
+- "id": krótkie, unikalne (litery, cyfry, - lub _), np. nazwisko bez polskich znaków.
+
 DOKUMENT:
-{ "id": "d7", "no": "7", "category": "Przesłuchania", "title": "Przesłuchanie — Jan Kowalski", "subtitle": "Świadek · 17.10.2026, 9:15", "blocks": [ BLOKI ] }
+{ "id": "d7", "no": "7", "category": "Przesłuchania", "title": "Przesłuchanie — Jan Kowalski", "subtitle": "Świadek · 17.10.2026, 9:15", "person": "kowalski", "blocks": [ BLOKI ] }
+- "person" (opcjonalne) — id osoby z "people"; jej zdjęcie pojawi się w nagłówku dokumentu. Ustaw je w każdym przesłuchaniu.
 - "id" unikalne w całej sprawie (także w dokumentach z "unlocks"); "no" to numer wyświetlany jako „DOKUMENT 7”.
 - "category": jedna z: "Raporty", "Osoby", "Przesłuchania", "Dowody" (możesz dodać własną).
 - Dokumenty numeruj kolejno; dokumenty odblokowywane wnioskami dostają kolejne numery po ostatnim jawnym.
@@ -80,6 +88,8 @@ BLOKI (pole "type" + pola wymienione obok). W tekstach wolno używać tylko <b>,
 - {"type":"svg","svg":"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'>…</svg>","caption":"…"}
       prosty szkic lub mapa: prostokąty, linie, okręgi, napisy; tylko apostrofy ' wewnątrz SVG; bez skryptów, bez obrazków zewnętrznych; podpisane punkty (A, B, C) i skala/odległości.
 - {"type":"box","title":"…","blocks":[ BLOKI ]}   ramka
+- {"type":"person","person":"kowalski","rows":[["Zawód","…"],["Związek z ofiarą","…"],["Możliwy motyw","…"],["Deklarowane alibi","…"]]}
+      karta osoby ze zdjęciem — używaj w „Kartach osób podejrzanych” zamiast śródtytułu + kv
 
 WNIOSEK (odblokowanie dokumentów):
 { "id": "laptop", "title": "Wniosek o …", "prompt": "Pytanie, na które odpowiedź jest w aktach", "placeholder": "podpowiedź formatu odpowiedzi",

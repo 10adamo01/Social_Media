@@ -122,6 +122,10 @@ function renderBlock(b) {
       return `<figure class="figure"><img src="${esc(src)}" alt="${esc(plain(b.caption || "Zdjęcie"))}" loading="lazy">${b.caption ? `<figcaption>${inline(b.caption)}</figcaption>` : ""}</figure>`;
     }
     case "box": return `<div class="box">${b.title ? `<div class="box-title">${inline(b.title)}</div>` : ""}${renderBlocks(b.blocks)}</div>`;
+    case "person": {
+      const p = personById(b.person) || { id: b.person || "?", name: b.name || b.person || "?", gender: b.gender, age: b.age, role: b.role };
+      return personCard({ ...p, note: b.note ?? p.note }, b.rows || []);
+    }
     default: return `<p class="small">[nieznany typ bloku: ${esc(b.type)}]</p>`;
   }
 }
@@ -139,9 +143,106 @@ function renderDoc(doc, extra = "") {
       <h2>${inline(doc.title)}</h2>
     </header>
     ${doc.subtitle ? `<p class="doc-sub">${inline(doc.subtitle)}</p>` : ""}
+    ${doc.person && personById(doc.person) ? `<div class="doc-photo" title="${esc(plain(personById(doc.person).name || ""))}">${faceImg(doc.person)}<span>${personLine(personById(doc.person))}</span></div>` : ""}
     ${extra}
     <div class="doc-body">${renderBlocks(doc.blocks)}</div>
   </article>`;
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  Baza zdjęć: portrety dobierane do osób z akt (płeć + wiek)         */
+/* ------------------------------------------------------------------ */
+const AGE_GROUPS = { mlody: "młody (do 34 l.)", sredni: "średni wiek (35–59 l.)", starszy: "starszy (60+ l.)" };
+const GENDERS = { k: "kobieta", m: "mężczyzna" };
+const FACES = { list: [], loaded: false, loading: null, override: null, cache: null };
+function ageGroup(age) { const a = Number(age); if (!a) return null; return a < 35 ? "mlody" : a < 60 ? "sredni" : "starszy"; }
+function faceUrl(path) {
+  const base = String(window.CONFIG?.SUPABASE_URL || "").replace(/\/+$/, "");
+  return `${base}/storage/v1/object/public/portrety/${String(path).split("/").map(encodeURIComponent).join("/")}`;
+}
+async function loadFaces(force = false) {
+  if (!sb) return;
+  if (FACES.loaded && !force) return;
+  if (FACES.loading && !force) return FACES.loading;
+  FACES.loading = (async () => {
+    try {
+      const rows = await q(sb.from("portraits").select("id, path, gender, age_group, created_at").order("created_at").order("id"));
+      FACES.list = rows || []; FACES.loaded = true; FACES.cache = null;
+      hydrateFaces();
+    } catch (e) { console.warn("zdjęcia:", e); }
+    finally { FACES.loading = null; }
+  })();
+  return FACES.loading;
+}
+function faceCase() { return FACES.override || R?.caseData || null; }
+function casePeople(c = faceCase()) { return Array.isArray(c?.people) ? c.people : []; }
+function personById(id, c = faceCase()) { return casePeople(c).find(p => p.id === id) || null; }
+function hashStr(str) { let h = 2166136261; for (const ch of String(str)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; }
+// Ta sama osoba w tej samej sprawie dostaje zawsze to samo zdjęcie (u wszystkich graczy), a dwie osoby w sprawie — różne
+function faceMap(c = faceCase()) {
+  const people = casePeople(c);
+  const key = `${c?.id || ""}|${FACES.list.length}|${people.map(p => `${p.id}:${p.gender}:${p.age}:${p.photo || ""}`).join(",")}`;
+  if (FACES.cache?.key === key) return FACES.cache.map;
+  const map = new Map(), used = new Set();
+  const byId = Object.fromEntries(FACES.list.map(f => [f.id, f]));
+  const pick = (p, cands, reuse = false) => {
+    const pool = reuse ? cands : cands.filter(f => !used.has(f.id));
+    if (!pool.length) return null;
+    const f = pool[hashStr(`${c?.id}:${p.id}`) % pool.length];
+    used.add(f.id); return f;
+  };
+  people.forEach(p => { if (p.photo && byId[p.photo]) { map.set(p.id, byId[p.photo]); used.add(p.photo); } });
+  const order = ["mlody", "sredni", "starszy"];
+  people.forEach(p => {
+    if (map.has(p.id) || p.photo === "none") return;
+    const g = p.gender === "k" || p.gender === "m" ? p.gender : null, ag = ageGroup(p.age);
+    const byG = FACES.list.filter(f => !g || f.gender === g);
+    const i = order.indexOf(ag);
+    const tiers = ag ? [byG.filter(x => x.age_group === ag), byG.filter(x => Math.abs(order.indexOf(x.age_group) - i) === 1), byG] : [byG];
+    let f = null;
+    for (const reuse of [false, true]) { for (const t of tiers) { if (!f) f = pick(p, t, reuse); } }
+    if (f) map.set(p.id, f);
+  });
+  FACES.cache = { key, map };
+  return map;
+}
+function silhouette(gender) {
+  const hair = gender === "k" ? `<path d='M22 46 C18 20 82 20 78 46 L82 74 C70 64 30 64 18 74 Z' fill='#6b6152'/>` : `<path d='M27 38 C27 18 73 18 73 38 C66 30 34 30 27 38 Z' fill='#6b6152'/>`;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 130'><rect width='100' height='130' fill='#d9cfb8'/>${hair}<circle cx='50' cy='46' r='21' fill='#8f846f'/><path d='M12 130 C14 92 86 92 88 130 Z' fill='#8f846f'/><text x='50' y='124' font-size='9' text-anchor='middle' fill='#5e5442' font-family='monospace'>BRAK ZDJĘCIA</text></svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+function faceSrc(personId) {
+  const p = personById(personId);
+  const f = p ? faceMap().get(p.id) : null;
+  return f ? faceUrl(f.path) : silhouette(p?.gender);
+}
+function faceImg(personId, cls = "") {
+  const p = personById(personId);
+  return `<img class="face ${cls}" data-person="${esc(personId)}" src="${esc(faceSrc(personId))}" alt="${esc(plain(p?.name || "Zdjęcie"))}" loading="lazy">`;
+}
+function hydrateFaces(root = document) {
+  $$("img[data-person]", root).forEach(img => { const src = faceSrc(img.dataset.person); if (img.getAttribute("src") !== src) img.src = src; });
+}
+function personLine(p) {
+  return `${inline(p.name || "?")}${p.age ? `, ${esc(p.age)} l.` : ""}`;
+}
+function personCard(p, rows, extra = "") {
+  return `<div class="person-card"><div class="pc-photo">${faceImg(p.id)}</div><div class="pc-body">
+    <div class="pc-name">${personLine(p)}</div>${p.role ? `<div class="pc-role">${inline(p.role)}</div>` : ""}
+    ${p.note ? `<p class="pc-note">${inline(p.note)}</p>` : ""}
+    ${rows && rows.length ? `<table class="kv">${rows.map(r => `<tr><th>${inline(r[0])}</th><td>${inline(r[1])}</td></tr>`).join("")}</table>` : ""}${extra}</div></div>`;
+}
+// Strona „Kartoteka osób” — wszystkie postacie sprawy ze zdjęciami
+function renderPeoplePage(c, docs) {
+  const people = casePeople(c);
+  const docsOf = (pid) => docs.filter(d => d.person === pid || JSON.stringify(d.blocks || []).includes(`"person":"${pid}"`));
+  return `<article class="paper"><header class="doc-head"><span class="doc-no">KARTOTEKA</span><h2>Osoby w sprawie</h2></header>
+    <p class="doc-sub">Zdjęcia z kartoteki i dokumentów tożsamości. Kliknij dokument, aby go otworzyć.</p>
+    <div class="doc-body people-grid">${people.map(p => {
+      const ds = docsOf(p.id);
+      return personCard(p, null, ds.length ? `<div class="pc-docs">${ds.map(d => `<button class="chip" data-doc="${esc(d.id)}">📄 ${esc(d.no ? `Dok. ${d.no}` : plain(d.title))}</button>`).join("")}</div>` : "");
+    }).join("") || `<p class="empty">Ta sprawa nie ma listy osób.</p>`}</div></article>`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -163,6 +264,16 @@ function validateCase(c) {
     if (!Array.isArray(d.blocks)) errs.push(`${where}: dokument "${d.id}" nie ma listy "blocks".`);
   };
   (c.documents || []).forEach(d => checkDoc(d, "documents"));
+  const pids = new Set();
+  if (c.people !== undefined && !Array.isArray(c.people)) errs.push(`Pole "people" musi być listą osób.`);
+  (Array.isArray(c.people) ? c.people : []).forEach((p, i) => {
+    if (!p || !/^[A-Za-z0-9_-]{1,40}$/.test(p.id || "")) { errs.push(`people[${i}]: "id" — litery, cyfry, _ lub - (np. "p1").`); return; }
+    if (pids.has(p.id)) errs.push(`people: powtórzone id "${p.id}".`);
+    pids.add(p.id);
+    if (!p.name) errs.push(`people "${p.id}": brak "name".`);
+    if (!["k", "m"].includes(p.gender)) errs.push(`people "${p.id}": "gender" musi być "k" (kobieta) albo "m" (mężczyzna).`);
+    if (p.age !== undefined && p.age !== null && p.age !== "" && !(Number(p.age) >= 1 && Number(p.age) <= 120)) errs.push(`people "${p.id}": "age" musi być liczbą lat (1–120).`);
+  });
   const uids = new Set();
   (c.unlocks || []).forEach(u => {
     if (!u.id) errs.push(`unlocks: wniosek bez "id".`);
@@ -184,6 +295,15 @@ function validateCase(c) {
       if (!Array.isArray(qq.keywords) || !qq.keywords.length) errs.push(`Pytanie "${qq.id}": pytanie tekstowe wymaga listy "keywords".`);
     } else errs.push(`Pytanie "${qq.id}": "type" musi być "choice" albo "text".`);
   });
+  const checkPersonRefs = (d) => {
+    if (d?.person && !pids.has(d.person)) errs.push(`Dokument "${d.id}": "person" = "${d.person}" nie ma na liście "people".`);
+    const walk = (bl) => (bl || []).forEach(b => {
+      if (b?.type === "person" && !pids.has(b.person)) errs.push(`Dokument "${d?.id}": blok "person" wskazuje nieznaną osobę "${b.person}".`);
+      if (b?.type === "box") walk(b.blocks);
+    });
+    walk(d?.blocks);
+  };
+  [...(c.documents || []), ...(c.unlocks || []).flatMap(u => u.documents || []), ...(Array.isArray(c.story) ? c.story : []).flatMap(m => m.documents || [])].forEach(checkPersonRefs);
   if (c.story !== undefined && !Array.isArray(c.story)) errs.push(`Pole "story" musi być listą wiadomości.`);
   const sids = new Set();
   (Array.isArray(c.story) ? c.story : []).forEach(m => {
@@ -228,6 +348,8 @@ function splitCase(c) {
   const pub = {
     format: c.format, id: c.id, title: c.title, subtitle: c.subtitle || "", meta: c.meta || {},
     intro: c.intro || [], documents: c.documents || [],
+    ...(Array.isArray(c.people) && c.people.length ? { people: c.people.map(p => ({ id: p.id, name: p.name, gender: p.gender,
+      ...(p.age ? { age: Number(p.age) } : {}), ...(p.role ? { role: p.role } : {}), ...(p.note ? { note: p.note } : {}), ...(p.photo ? { photo: p.photo } : {}) })) } : {}),
     unlocks: (c.unlocks || []).map(u => ({ id: u.id, title: u.title || "Wniosek", prompt: u.prompt, placeholder: u.placeholder || "" })),
     questions: (c.questions || []).map(qq => ({ id: qq.id, label: qq.label, type: qq.type, points: qq.points || 0,
       options: qq.type === "choice" ? qq.options : undefined, placeholder: qq.placeholder || "" })),
@@ -624,6 +746,7 @@ async function loadMe(user) {
   catch (e) { toast("Nie udało się zapisać profilu: " + errMsg(e), "error"); }
   try { isAdmin = !!(await q(sb.from("admins").select("user_id").eq("user_id", me.id).maybeSingle())); }
   catch { isAdmin = false; }
+  loadFaces();
 }
 
 function renderLogin(notConfigured = false) {
@@ -663,10 +786,12 @@ function discordIcon() {
 /* ------------------------------------------------------------------ */
 async function route() {
   const h = location.hash;
+  FACES.override = null;
   if (h.startsWith("#/instrukcja")) { leaveChannel(); R = null; renderHelp(); return; }
   if (h.startsWith("#/edytor")) { leaveChannel(); R = null; window.renderEditor ? window.renderEditor() : renderLobby(); return; }
   if (!me) { R = null; renderLogin(notConfigured); return; }
   let m;
+  if (h.startsWith("#/zdjecia")) { leaveChannel(); R = null; renderPhotoAdmin(); return; }
   if ((m = h.match(/^#\/profil(?:\/([0-9a-zA-Z-]+))?/))) { leaveChannel(); R = null; renderProfile(m[1] || null); return; }
   if ((m = h.match(/^#\/join\/([A-Za-z0-9]+)/))) {
     try {
@@ -834,6 +959,160 @@ function plural(n, one, few, many) {
   return d >= 2 && d <= 4 && (t < 12 || t > 14) ? few : many;
 }
 
+
+/* ------------------------------------------------------------------ */
+/*  Admin: baza zdjęć osób                                             */
+/* ------------------------------------------------------------------ */
+function guessFaceTags(name) {
+  const n = String(name || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l");
+  const w = n.split(/[^a-z0-9]+/).filter(Boolean);
+  const has = (re) => w.some(x => re.test(x));
+  let gender = null;
+  if (has(/^(k|f|kobieta|kobiety|kobiet|female|woman|women|girl|pani|ona)$/)) gender = "k";
+  else if (has(/^(m|mezczyzna|mezczyzni|male|man|men|boy|pan|on)$/)) gender = "m";
+  let age = null;
+  if (has(/^(mlod|mlody|mloda|mlodzi|young|teen|junior|student)/)) age = "mlody";
+  else if (has(/^(sred|sredni|srednia|middle|mid|adult|dorosl)/)) age = "sredni";
+  else if (has(/^(star|stary|starsza|starszy|old|senior|elder|emeryt)/)) age = "starszy";
+  if (!age) { const num = w.map(Number).find(x => x >= 15 && x <= 99); if (num) age = ageGroup(num); }
+  return { gender, age };
+}
+async function makePortrait(file) {
+  const bmp = await createImageBitmap(file);
+  const W = 480, H = 640, ratio = W / H;
+  let sw = bmp.width, sh = bmp.height, sx = 0, sy = 0;
+  if (sw / sh > ratio) { sw = Math.round(sh * ratio); sx = Math.round((bmp.width - sw) / 2); }
+  else { sh = Math.round(sw / ratio); sy = Math.round((bmp.height - sh) * 0.25); }
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, W, H);
+  cx.drawImage(bmp, sx, sy, sw, sh, 0, 0, W, H);
+  bmp.close?.();
+  return await new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error("Nie udało się przetworzyć zdjęcia")), "image/jpeg", 0.85));
+}
+async function renderPhotoAdmin() {
+  if (!isAdmin) { toast("Baza zdjęć jest dostępna tylko dla admina.", "error"); location.replace("#/"); return; }
+  let queue = [], filter = "all";
+  app.innerHTML = `
+  <div class="lobby photos">
+    <header class="lobby-top">${homeLink()}<div class="brand">🔎 ${esc(SITE)}</div><a class="btn tiny ghost" href="#/">← Lobby</a>${topbarUser()}</header>
+    <main class="profile-main">
+      <section class="panel">
+        <h2>🖼 Baza zdjęć osób</h2>
+        <p class="small">Gra sama dobiera zdjęcia do osób w sprawach według <b>płci</b> i <b>wieku</b> (pole <code>people</code> w pliku sprawy).
+          Ta sama osoba ma zawsze to samo zdjęcie u wszystkich graczy, a w jednej sprawie twarze się nie powtarzają (dopóki starcza zdjęć w grupie).
+          Zdjęcia są automatycznie przycinane do formatu legitymacyjnego 3:4 i zmniejszane.</p>
+        <p class="small">⚠️ Używaj tylko zdjęć, do których masz prawo — np. wygenerowanych twarzy nieistniejących osób albo zdjęć z darmową licencją. Nie wrzucaj zdjęć znajomych ani widzów: w grze to podejrzani i ofiary.</p>
+        <div id="faceStats" class="face-stats"></div>
+      </section>
+      <section class="panel">
+        <h2>⬆ Dodaj zdjęcia</h2>
+        <p class="small">Możesz zaznaczyć wiele plików naraz. Płeć i wiek odczytam z nazwy pliku, jeśli to możliwe (np. <code>k_starsza_01.jpg</code>, <code>mezczyzna-45.png</code>, <code>woman_young.webp</code>) — resztę ustaw ręcznie.</p>
+        <div class="row wrap">
+          <label class="btn primary file-btn">📁 Wybierz zdjęcia<input type="file" id="faceFiles" accept="image/jpeg,image/png,image/webp" multiple hidden></label>
+          <span class="small">Ustaw wszystkim:</span>
+          <select id="allG"><option value="">płeć…</option><option value="k">kobieta</option><option value="m">mężczyzna</option></select>
+          <select id="allA"><option value="">wiek…</option>${Object.entries(AGE_GROUPS).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
+        </div>
+        <div id="faceQueue" class="face-grid"></div>
+        <div class="row"><button class="btn primary" id="faceUpload" hidden>Wgraj</button><span id="faceProgress" class="small"></span></div>
+      </section>
+      <section class="panel">
+        <h2>Zdjęcia w bazie</h2>
+        <div class="row wrap" id="faceFilter"></div>
+        <div id="faceGallery" class="face-grid"></div>
+      </section>
+    </main>
+  </div>`;
+  bindLogout();
+  const tagSel = (cls, val, opts, ph) => `<select class="${cls}"><option value="">${ph}</option>${Object.entries(opts).map(([k, l]) => `<option value="${k}" ${k === val ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  const drawStats = () => {
+    const n = (g, a) => FACES.list.filter(f => f.gender === g && f.age_group === a).length;
+    $("#faceStats").innerHTML = `<table class="lb"><thead><tr><th></th>${Object.values(AGE_GROUPS).map(l => `<th>${esc(l)}</th>`).join("")}<th>Razem</th></tr></thead><tbody>
+      ${Object.entries(GENDERS).map(([g, gl]) => `<tr><td><b>${g === "k" ? "👩" : "👨"} ${gl}</b></td>${Object.keys(AGE_GROUPS).map(a => { const x = n(g, a); return `<td class="${x < 5 ? "low" : ""}">${x}</td>`; }).join("")}<td>${FACES.list.filter(f => f.gender === g).length}</td></tr>`).join("")}
+      </tbody></table><p class="small">Zalecane: co najmniej <b>5–10 zdjęć w każdej grupie</b> (czerwone pola mają mniej niż 5). Gdy w grupie zabraknie zdjęć, gra weźmie sąsiednią grupę wiekową tej samej płci.</p>`;
+    const counts = { all: FACES.list.length, k: FACES.list.filter(f => f.gender === "k").length, m: FACES.list.filter(f => f.gender === "m").length };
+    $("#faceFilter").innerHTML = [["all", "Wszystkie"], ["k", "👩 Kobiety"], ["m", "👨 Mężczyźni"], ...Object.entries(AGE_GROUPS).map(([k, l]) => [k, l])]
+      .map(([k, l]) => `<button class="btn tiny ${filter === k ? "primary" : "ghost"}" data-f="${k}">${esc(l)}${counts[k] !== undefined ? ` (${counts[k]})` : ""}</button>`).join("");
+    $$("[data-f]", $("#faceFilter")).forEach(b => b.addEventListener("click", () => { filter = b.dataset.f; drawStats(); drawGallery(); }));
+  };
+  const drawGallery = () => {
+    const list = FACES.list.filter(f => filter === "all" || f.gender === filter || f.age_group === filter).slice().reverse();
+    $("#faceGallery").innerHTML = list.map(f => `<div class="face-card" data-id="${esc(f.id)}"><img src="${esc(faceUrl(f.path))}" alt="" loading="lazy">
+      ${tagSel("fg", f.gender, GENDERS, "płeć")}${tagSel("fa", f.age_group, AGE_GROUPS, "wiek")}
+      <button class="btn tiny ghost" data-del title="Usuń zdjęcie">🗑 Usuń</button></div>`).join("") || `<p class="empty">Brak zdjęć${filter !== "all" ? " w tej grupie" : ""}.</p>`;
+    $$(".face-card", $("#faceGallery")).forEach(card => {
+      const id = card.dataset.id, f = FACES.list.find(x => x.id === id);
+      const save = async (patch) => {
+        try { await q(sb.from("portraits").update(patch).eq("id", id)); Object.assign(f, patch); FACES.cache = null; drawStats(); toast("Zapisano.", "ok", 1500); }
+        catch (e) { toast(errMsg(e), "error"); }
+      };
+      $(".fg", card).addEventListener("change", e => e.target.value && save({ gender: e.target.value }));
+      $(".fa", card).addEventListener("change", e => e.target.value && save({ age_group: e.target.value }));
+      $("[data-del]", card).addEventListener("click", async () => {
+        if (!(await confirmBox("Usunąć to zdjęcie z bazy? Osoby, które je miały, dostaną inne zdjęcie."))) return;
+        try {
+          await q(sb.storage.from("portrety").remove([f.path]));
+          await q(sb.from("portraits").delete().eq("id", id));
+          FACES.list = FACES.list.filter(x => x.id !== id); FACES.cache = null; drawStats(); drawGallery();
+        } catch (e) { toast(errMsg(e), "error"); }
+      });
+    });
+  };
+  const drawQueue = () => {
+    $("#faceQueue").innerHTML = queue.map((it, i) => `<div class="face-card ${it.done ? "done" : ""} ${it.err ? "err" : ""}" data-i="${i}"><img src="${it.url}" alt="">
+      <div class="small fname" title="${esc(it.file.name)}">${esc(it.file.name)}</div>
+      ${it.done ? `<span class="badge ok">wgrane</span>` : `${tagSel("qg", it.gender, GENDERS, "płeć?")}${tagSel("qa", it.age, AGE_GROUPS, "wiek?")}
+      <button class="btn tiny ghost" data-rm>✕</button>`}${it.err ? `<div class="error small">${esc(it.err)}</div>` : ""}</div>`).join("");
+    $$(".face-card", $("#faceQueue")).forEach(card => {
+      const it = queue[+card.dataset.i];
+      $(".qg", card)?.addEventListener("change", e => { it.gender = e.target.value || null; drawBtn(); });
+      $(".qa", card)?.addEventListener("change", e => { it.age = e.target.value || null; drawBtn(); });
+      $("[data-rm]", card)?.addEventListener("click", () => { URL.revokeObjectURL(it.url); queue.splice(queue.indexOf(it), 1); drawQueue(); });
+    });
+    drawBtn();
+  };
+  const drawBtn = () => {
+    const todo = queue.filter(x => !x.done), ready = todo.filter(x => x.gender && x.age);
+    const b = $("#faceUpload");
+    b.hidden = !todo.length;
+    b.disabled = !ready.length;
+    b.textContent = ready.length === todo.length ? `⬆ Wgraj ${ready.length} ${plural(ready.length, "zdjęcie", "zdjęcia", "zdjęć")}` : `⬆ Wgraj opisane (${ready.length}/${todo.length})`;
+  };
+  $("#faceFiles").addEventListener("change", e => {
+    [...e.target.files].forEach(file => {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { toast(`Pominięto ${file.name} — dozwolone JPG, PNG, WEBP.`, "error"); return; }
+      const g = guessFaceTags(file.name);
+      queue.push({ file, url: URL.createObjectURL(file), gender: g.gender, age: g.age });
+    });
+    e.target.value = ""; drawQueue();
+  });
+  $("#allG").addEventListener("change", e => { if (e.target.value) { queue.forEach(it => { if (!it.done) it.gender = e.target.value; }); e.target.value = ""; drawQueue(); } });
+  $("#allA").addEventListener("change", e => { if (e.target.value) { queue.forEach(it => { if (!it.done) it.age = e.target.value; }); e.target.value = ""; drawQueue(); } });
+  $("#faceUpload").addEventListener("click", async () => {
+    const ready = queue.filter(x => !x.done && x.gender && x.age);
+    const btn = $("#faceUpload"); btn.disabled = true;
+    let ok = 0;
+    for (const [i, it] of ready.entries()) {
+      $("#faceProgress").textContent = `Wgrywanie ${i + 1}/${ready.length}…`;
+      try {
+        const blob = await makePortrait(it.file);
+        const id = (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+        const path = `${it.gender}/${it.age}/${id}.jpg`;
+        await q(sb.storage.from("portrety").upload(path, blob, { contentType: "image/jpeg", upsert: false }));
+        const row = await q(sb.from("portraits").insert({ path, gender: it.gender, age_group: it.age }).select().single());
+        FACES.list.push(row); it.done = true; it.err = null; ok++;
+      } catch (e) { it.err = errMsg(e); }
+    }
+    FACES.cache = null;
+    $("#faceProgress").textContent = ok ? `✅ Wgrano ${ok} ${plural(ok, "zdjęcie", "zdjęcia", "zdjęć")}.` : "";
+    if (ok) SND.play?.("ding");
+    queue = queue.filter(x => !x.done || x.err);
+    drawQueue(); drawStats(); drawGallery();
+  });
+  $("#faceStats").innerHTML = `<p class="small">Wczytywanie…</p>`;
+  await loadFaces(true);
+  drawStats(); drawGallery();
+}
 /* ------------------------------------------------------------------ */
 /*  Lobby                                                              */
 /* ------------------------------------------------------------------ */
@@ -873,6 +1152,7 @@ async function renderLobby() {
         <div class="row wrap">
           <label class="btn primary file-btn">⬆ Wgraj sprawę (.json)<input type="file" id="uploadCase" accept=".json,application/json" hidden></label>
           <label class="btn ghost file-btn">👁 Podgląd pliku<input type="file" id="previewCase" accept=".json,application/json" hidden></label>
+          <a class="btn ghost" href="#/zdjecia">🖼 Baza zdjęć osób</a>
         </div>
         <div id="uploadInfo"></div>
         <div id="adminCases" class="admin-cases"></div>
@@ -1089,6 +1369,7 @@ async function openPreviewFromFile(file, onBack) {
 
 function renderPreview(c, errs, onBack) {
   leaveChannel();
+  FACES.override = c; loadFaces();
   const groups = groupDocs([
     ...(c.documents || []),
     ...(c.unlocks || []).flatMap(u => (u.documents || []).map(d => ({ ...d, _lockedBy: u }))),
@@ -1098,6 +1379,7 @@ function renderPreview(c, errs, onBack) {
   let current = "__intro";
   const special = {
     __intro: () => renderDoc({ title: c.title, subtitle: c.subtitle, blocks: c.intro || [] }),
+    __people: () => renderPeoplePage(c, groups.all),
     __unlocks: () => `<article class="paper"><header class="doc-head"><h2>Wnioski i odpowiedzi</h2></header><div class="doc-body">
       ${(c.unlocks || []).map(u => `<div class="box"><div class="box-title">${inline(u.title || u.id)}</div><p>${inline(u.prompt)}</p>
         <p class="small">Akceptowane (${esc(u.match || "exact")}): ${(u.answers || []).map(a => `<code>${esc(a)}</code>`).join(" ")}</p>
@@ -1135,6 +1417,7 @@ function renderPreview(c, errs, onBack) {
       <div class="akta ${current ? "has-doc" : ""}">
         <aside class="doclist">
           <button class="docitem ${current === "__intro" ? "active" : ""}" data-doc="__intro">📋 Odprawa</button>
+          ${casePeople(c).length ? `<button class="docitem ${current === "__people" ? "active" : ""}" data-doc="__people">👥 Kartoteka osób</button>` : ""}
           ${renderDocGroups(groups, current, {})}
           <div class="dl-group">Dla autora</div>
           <button class="docitem ${current === "__unlocks" ? "active" : ""}" data-doc="__unlocks">📝 Wnioski i odpowiedzi</button>
@@ -1515,7 +1798,7 @@ async function reloadCase(announce) {
     R.caseData = cs.data; R.caseMeta = { visibility: cs.visibility, owner: cs.owner };
     R.unlocked = await q(sb.rpc("get_unlocked", { p_room: R.room.id }));
     R.unlockIds = new Set(R.unlocked.map(u => u.id));
-    if (R.docId && !["__intro", "__unlocks"].includes(R.docId) && !allDocs().some(d => d.id === R.docId)) R.docId = "__intro";
+    if (R.docId && !["__intro", "__unlocks", "__people"].includes(R.docId) && !allDocs().some(d => d.id === R.docId)) R.docId = "__intro";
     if (announce) toast("📂 Założyciel wgrał poprawioną wersję sprawy — akta odświeżone.", "info", 5000);
     renderRoom();
   } catch (e) { toast(errMsg(e), "error"); }
@@ -1691,6 +1974,7 @@ function viewingLabel(v) {
   if (v === "notatki") return "w notatkach";
   if (v === "rozwiazanie") return "przy rozwiązaniu";
   if (v === "__intro") return "czyta odprawę";
+  if (v === "__people") return "przegląda kartotekę osób";
   if (v === "__unlocks") return "przy wnioskach";
   const d = allDocs().find(x => x.id === v);
   return d ? `czyta: ${plain(d.title)}` : "w aktach";
@@ -1757,6 +2041,8 @@ function renderAkta(v) {
     content = renderUnlocks();
   } else if (R.docId === "__inbox") {
     content = renderInbox();
+  } else if (R.docId === "__people") {
+    content = renderPeoplePage(R.caseData, groups.all);
   } else if (R.docId === "__conf") {
     content = renderConfPage();
   } else {
@@ -1769,6 +2055,9 @@ function renderAkta(v) {
     <aside class="doclist">
       <button class="docitem ${R.docId === "__intro" ? "active" : ""}" data-doc="__intro">📋 Odprawa
         <span class="di-viewers" data-viewers="__intro">${(vm.__intro || []).map(p => avatarHtml(p, 18)).join("")}</span></button>
+      ${casePeople(R.caseData).length ? `<button class="docitem people ${R.docId === "__people" ? "active" : ""}" data-doc="__people">👥 Kartoteka osób
+        <span class="di-tag">${casePeople(R.caseData).length}</span>
+        <span class="di-viewers" data-viewers="__people">${(vm.__people || []).map(p => avatarHtml(p, 18)).join("")}</span></button>` : ""}
       ${unl.length ? `<button class="docitem wnioski ${R.docId === "__unlocks" ? "active" : ""}" data-doc="__unlocks">📝 Wnioski
         ${openCount ? `<span class="di-tag hot">${openCount} do złożenia</span>` : `<span class="di-tag">✓ wszystkie</span>`}
         <span class="di-viewers" data-viewers="__unlocks">${(vm.__unlocks || []).map(p => avatarHtml(p, 18)).join("")}</span></button>` : ""}
@@ -2922,7 +3211,7 @@ MUSIC.boot();
 window.__detektyw = { renderBlocks, validateCase, splitCase, mergeCase, renderPreview, buildPrompt };
 window.BS = {
   sb, $, $$, esc, inline, plain, toast, confirmBox, showModal, q, errMsg, debounce,
-  validateCase, splitCase, mergeCase, renderPreview, renderBlocks, downloadJson, readCaseFile, publishCase, openEditor,
+  validateCase, splitCase, mergeCase, renderPreview, renderBlocks, FACES, loadFaces, faceSrc, ageGroup, AGE_GROUPS, downloadJson, readCaseFile, publishCase, openEditor,
   topbarUser, bindLogout, diffSelect, SND, SITE,
   me: () => me, isAdmin: () => isAdmin, app,
 };

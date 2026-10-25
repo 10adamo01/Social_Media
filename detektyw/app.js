@@ -667,6 +667,7 @@ async function route() {
   if (h.startsWith("#/edytor")) { leaveChannel(); R = null; window.renderEditor ? window.renderEditor() : renderLobby(); return; }
   if (!me) { R = null; renderLogin(notConfigured); return; }
   let m;
+  if ((m = h.match(/^#\/profil(?:\/([0-9a-zA-Z-]+))?/))) { leaveChannel(); R = null; renderProfile(m[1] || null); return; }
   if ((m = h.match(/^#\/join\/([A-Za-z0-9]+)/))) {
     try {
       const id = await q(sb.rpc("join_room", { p_code: m[1] }));
@@ -683,10 +684,155 @@ async function route() {
 }
 
 function topbarUser() {
-  return `<div class="userchip">${avatarHtml(me, 28)}<span>${esc(me.name)}</span>
+  return `<div class="userchip"><a class="userlink" href="#/profil" title="Twój profil detektywa">${avatarHtml(me, 28, false)}<span>${esc(me.name)}</span></a>
     <button class="btn tiny ghost" id="logoutBtn" title="Wyloguj">Wyloguj</button></div>`;
 }
 function bindLogout() { $("#logoutBtn")?.addEventListener("click", () => sb.auth.signOut()); }
+
+
+/* ------------------------------------------------------------------ */
+/*  Profil gracza                                                      */
+/* ------------------------------------------------------------------ */
+const RANKS = [
+  [0, "Praktykant", "🪪"], [1, "Posterunkowy", "👮"], [3, "Aspirant", "🔍"], [6, "Komisarz", "🕵️"],
+  [10, "Nadkomisarz", "🎖️"], [15, "Inspektor", "⭐"], [25, "Legenda Biura", "🏆"],
+];
+function rankOf(solved) {
+  let i = 0;
+  RANKS.forEach((r, k) => { if (solved >= r[0]) i = k; });
+  const next = RANKS[i + 1];
+  return { name: RANKS[i][1], icon: RANKS[i][2], next, pct: next ? Math.round((solved - RANKS[i][0]) * 100 / (next[0] - RANKS[i][0])) : 100 };
+}
+const BADGES = [
+  ["first", "🔑", "Pierwsza sprawa", "Rozwiąż pierwszą sprawę", (s) => s.solved >= 1],
+  ["clean", "🧠", "Bez podpowiedzi", "Rozwiąż sprawę bez żadnej podpowiedzi", (s) => s.no_hints >= 1],
+  ["perfect", "💯", "Perfekcja", "Zdobądź maksymalny wynik", (s) => s.perfect >= 1],
+  ["fast", "⚡", "Błyskawica", "Rozwiąż sprawę w mniej niż 30 minut", (s) => s.fastest != null && s.fastest < 1800],
+  ["hard", "🔴", "Twardziel", "Rozwiąż sprawę na poziomie trudnym", (s) => s.solved_hard >= 1],
+  ["serial", "📚", "Seryjny detektyw", "Rozwiąż 10 spraw", (s) => s.solved >= 10],
+  ["conf", "⚔️", "Łowca sprzeczności", "Znajdź 10 sprzeczności", (s) => s.confronts >= 10],
+  ["unlock", "🗝️", "Odkrywca", "Odblokuj 5 dokumentów wnioskami", (s) => s.unlocks >= 5],
+  ["time", "🕰️", "Kronikarz", "Dodaj 20 wpisów na oś czasu", (s) => s.timeline >= 20],
+  ["board", "🧵", "Architekt tablicy", "Dodaj 30 karteczek i przypinek", (s) => s.notes + s.pins >= 30],
+  ["hl", "🖍️", "Zakreślacz", "Zakreśl 25 fragmentów akt", (s) => s.highlights >= 25],
+  ["team", "👥", "Gracz zespołowy", "Zagraj w drużynie co najmniej 4 osób", (s) => s.max_team >= 4],
+];
+
+async function renderProfile(userId) {
+  const own = !userId || userId === me.id;
+  app.innerHTML = `
+  <div class="lobby profile">
+    <header class="lobby-top">${homeLink()}<div class="brand">🔎 ${esc(SITE)}</div><a class="btn tiny ghost" href="#/">← Lobby</a>
+      ${soundButton()}${topbarUser()}</header>
+    <main class="profile-main" id="profMain"><p class="small">Wczytywanie akt osobowych…</p></main>
+  </div>`;
+  bindLogout();
+  bindSoundButton?.();
+  let st;
+  try { st = await q(sb.rpc("get_player_stats", { p_user: own ? null : userId })); }
+  catch (e) { $("#profMain").innerHTML = `<section class="panel"><p class="error">${esc(errMsg(e))}</p><a class="btn ghost" href="#/">← Wróć do lobby</a></section>`; return; }
+  const p = st.profile || {};
+  const rk = rankOf(st.solved);
+  const n = (v) => Number(v || 0);
+  const since = p.created_at ? new Date(p.created_at).toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" }) : "";
+  const tile = (icon, val, label, hint = "") => `<div class="stat"${hint ? ` title="${esc(hint)}"` : ""}><div class="stat-ico">${icon}</div><div class="stat-val">${val}</div><div class="stat-lbl">${label}</div></div>`;
+  const got = BADGES.filter((b) => b[4](st)).length;
+  const hist = st.history || [];
+  const solvedHist = hist.filter((h) => h.status === "solved" && h.max > 0).slice(0, 12).reverse();
+  const statusBadge = (h) => h.status === "solved" ? `<span class="badge ok">rozwiązana</span>` : `<span class="badge warn">w toku</span>`;
+  const accuracy = n(st.confronts) + n(st.confronts_wrong) ? Math.round(n(st.confronts) * 100 / (n(st.confronts) + n(st.confronts_wrong))) + "%" : "—";
+
+  $("#profMain").innerHTML = `
+    <section class="panel id-card">
+      <div class="id-photo">${avatarHtml(p, 96, false)}</div>
+      <div class="id-body">
+        <div class="id-label">Legitymacja służbowa · Biuro Śledcze</div>
+        <h1 class="id-name">${esc(p.name || "?")}</h1>
+        <div class="id-rank">${rk.icon} <b>${esc(rk.name)}</b>${own ? ` <span class="small">(to Ty)</span>` : ""}</div>
+        <div class="rank-bar" title="${rk.next ? `Do awansu na „${esc(rk.next[1])}”: ${rk.next[0] - n(st.solved)} rozwiązanych spraw` : "Najwyższa ranga!"}"><span style="width:${rk.pct}%"></span></div>
+        <div class="small">${rk.next ? `Następna ranga: ${rk.next[2]} ${esc(rk.next[1])} — jeszcze ${rk.next[0] - n(st.solved)} ${plural(rk.next[0] - n(st.solved), "sprawa", "sprawy", "spraw")}` : "Osiągnięto najwyższą rangę."}${since ? ` · w biurze od ${esc(since)}` : ""}</div>
+      </div>
+      <div class="id-stamp">${got}/${BADGES.length}<small>odznak</small></div>
+    </section>
+
+    <section class="panel">
+      <h2>Statystyki</h2>
+      <div class="stats">
+        ${tile("📁", n(st.rooms), "rozegranych śledztw")}
+        ${tile("✅", n(st.solved), "rozwiązanych spraw")}
+        ${tile("⏳", n(st.active), "w toku")}
+        ${tile("🏅", n(st.points), "punktów łącznie")}
+        ${tile("📊", st.avg_pct == null ? "—" : st.avg_pct + "%", "średni wynik", "Średni procent maksymalnych punktów w rozwiązanych sprawach")}
+        ${tile("🥇", st.best == null ? "—" : st.best, "najlepszy wynik")}
+        ${tile("⏱️", st.fastest == null ? "—" : fmtDur(st.fastest), "najszybsze rozwiązanie")}
+        ${tile("💯", n(st.perfect), "spraw na maksa")}
+      </div>
+      <div class="diff-split">
+        ${["easy", "normal", "hard"].map((k) => `<div>${DIFF[k].icon} ${DIFF[k].label}: <b>${n(st["solved_" + k])}</b></div>`).join("")}
+      </div>
+      ${solvedHist.length ? `<h3>Ostatnie wyniki</h3>
+      <div class="score-chart">${solvedHist.map((h) => { const pc = Math.max(4, Math.min(100, Math.round(h.total * 100 / h.max)));
+        return `<div class="sc-col" title="${esc(h.case)} — ${h.total}/${h.max} pkt"><span class="sc-val">${h.total}</span><span class="sc-bar d-${esc(h.difficulty || "normal")}" style="height:${pc}%"></span></div>`; }).join("")}</div>` : ""}
+    </section>
+
+    <section class="panel">
+      <h2>Wkład w śledztwa</h2>
+      <div class="stats small-stats">
+        ${tile("🗝️", n(st.unlocks), "odblokowanych dokumentów", "Trafne wnioski")}
+        ${tile("⚔️", n(st.confronts), "znalezionych sprzeczności")}
+        ${tile("🎯", accuracy, "trafność konfrontacji")}
+        ${tile("💡", n(st.hints), "użytych podpowiedzi")}
+        ${tile("🖍️", n(st.highlights), "zakreśleń")}
+        ${tile("🕰️", n(st.timeline), "wpisów na osi czasu")}
+        ${tile("📝", n(st.notes), "karteczek")}
+        ${tile("📌", n(st.pins), "przypinek na tablicy")}
+        ${tile("🗳️", n(st.votes), "oddanych głosów")}
+        ${tile("👥", n(st.max_team), "największa drużyna")}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Odznaki <span class="small">${got} z ${BADGES.length}</span></h2>
+      <div class="badges">${BADGES.map((b) => { const ok = b[4](st);
+        return `<div class="medal ${ok ? "got" : ""}" title="${esc(b[3])}${ok ? " — zdobyta!" : ""}"><div class="medal-ico">${b[1]}</div><div class="medal-name">${esc(b[2])}</div><div class="medal-desc">${esc(b[3])}</div></div>`; }).join("")}</div>
+    </section>
+
+    <section class="panel">
+      <h2>Historia śledztw</h2>
+      ${hist.length ? `<div class="tablewrap"><table class="lb hist">
+        <thead><tr><th>Sprawa</th>${own ? "<th>Drużyna</th>" : ""}<th title="Poziom">🎯</th><th>Status</th><th>Wynik</th><th>Czas</th><th title="Podpowiedzi">💡</th><th title="Graczy">👥</th><th>Data</th></tr></thead><tbody>
+        ${hist.map((h) => `<tr>
+          <td>${h.room_id ? `<a class="ink-link" href="#/room/${esc(h.room_id)}">${esc(h.case || "?")}</a>` : esc(h.case || "?")}${h.private ? ` <span class="small" title="Własna sprawa z pliku">📂</span>` : ""}</td>
+          ${own ? `<td>${esc(h.name || "")}</td>` : ""}
+          <td title="${esc(DIFF[h.difficulty || "normal"]?.label || "")}">${DIFF[h.difficulty || "normal"]?.icon || ""}</td>
+          <td>${statusBadge(h)}</td>
+          <td>${h.status === "solved" ? `<b>${h.total}</b>/${h.max}${h.bonus ? ` <span class="small">(+${h.bonus}⚔)</span>` : ""}` : "—"}</td>
+          <td>${h.secs != null ? fmtDur(h.secs) : "—"}</td><td>${h.status === "solved" ? h.hints : "—"}</td><td>${h.players}</td>
+          <td class="small">${new Date(h.created_at).toLocaleDateString("pl-PL")}</td></tr>`).join("")}
+      </tbody></table></div>` : `<p class="empty">${own ? "Nie masz jeszcze żadnego śledztwa. <a class='ink-link' href='#/'>Załóż pierwsze w lobby!</a>" : "Ten detektyw nie rozegrał jeszcze żadnej sprawy."}</p>`}
+    </section>
+
+    <section class="panel">
+      <h2>Najlepsi detektywi</h2>
+      <div id="topPlayers"><p class="small">Wczytywanie…</p></div>
+    </section>`;
+
+  try {
+    const top = await q(sb.rpc("get_top_players", { p_limit: 10 }));
+    $("#topPlayers").innerHTML = top.length ? `<div class="tablewrap"><table class="lb">
+      <thead><tr><th>#</th><th>Detektyw</th><th>Ranga</th><th>Sprawy</th><th>Pkt</th></tr></thead><tbody>
+      ${top.map((t, i) => { const r = rankOf(t.solved); return `<tr class="${t.user_id === (p.id || me.id) ? "me" : ""}"><td>${i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}</td>
+        <td><a class="userlink" href="#/profil/${esc(t.user_id)}">${avatarHtml(t, 22, false)} ${esc(t.name || "?")}</a></td>
+        <td>${r.icon} ${esc(r.name)}</td><td><b>${t.solved}</b></td><td>${t.points}</td></tr>`; }).join("")}
+      </tbody></table></div>` : `<p class="empty">Jeszcze nikt nie rozwiązał sprawy.</p>`;
+  } catch (e) { $("#topPlayers").innerHTML = `<p class="error">${esc(errMsg(e))}</p>`; }
+}
+function plural(n, one, few, many) {
+  n = Math.abs(n);
+  if (n === 1) return one;
+  const d = n % 10, t = n % 100;
+  return d >= 2 && d <= 4 && (t < 12 || t > 14) ? few : many;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Lobby                                                              */
@@ -696,6 +842,7 @@ async function renderLobby() {
   <div class="lobby">
     <header class="lobby-top">${homeLink()}<div class="brand">🔎 ${esc(SITE)}</div><a class="btn tiny ghost" href="#/instrukcja">📖 Instrukcja</a>
       <a class="btn tiny ghost" href="#/edytor">✏️ Edytor</a>
+      <a class="btn tiny ghost" href="#/profil">👤 Profil</a>
       ${soundButton()}<button class="btn tiny ghost ${streamer ? "on" : ""}" id="streamBtn" title="Tryb streamera — ukrywa kody pokoi">🎥</button>${topbarUser()}</header>
     <main class="lobby-grid">
       <section class="panel span2">
@@ -1083,6 +1230,7 @@ async function loadSolution() {
 }
 
 function leaveChannel() {
+  document.querySelectorAll(".folder-back").forEach((x) => x.remove());
   stopRoomTimers();
   hideSelBar();
   if (channel) { sb.removeChannel(channel); channel = null; }
@@ -1869,7 +2017,7 @@ function renderNotes(v) {
       <section class="panel">
         <h2>Drużyna</h2>
         <div class="members">${[...R.members.entries()].map(([id, p]) => `
-          <div class="member">${avatarHtml(p, 30)}<span class="m-name">${esc(p.name)}${id === R.room.owner ? ` <span class="small">(założyciel)</span>` : ""}</span>
+          <div class="member"><a class="userlink" href="#/profil/${esc(id)}" target="_blank" rel="noopener" title="Profil gracza (nowa karta)">${avatarHtml(p, 30, false)}<span class="m-name">${esc(p.name)}</span></a><span class="m-name">${id === R.room.owner ? ` <span class="small">(założyciel)</span>` : ""}</span>
           ${R.presence[id] ? `<span class="badge ok">online</span>` : ""}</div>`).join("")}</div>
         <button class="btn tiny ghost" id="leaveRoom">Opuść pokój</button>
       </section>

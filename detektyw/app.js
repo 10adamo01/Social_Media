@@ -234,14 +234,14 @@ function personCard(p, rows, extra = "") {
     ${rows && rows.length ? `<table class="kv">${rows.map(r => `<tr><th>${inline(r[0])}</th><td>${inline(r[1])}</td></tr>`).join("")}</table>` : ""}${extra}</div></div>`;
 }
 // Strona „Kartoteka osób” — wszystkie postacie sprawy ze zdjęciami
-function renderPeoplePage(c, docs) {
+function renderPeoplePage(c, docs, inRoom = false) {
   const people = casePeople(c);
   const docsOf = (pid) => docs.filter(d => d.person === pid || JSON.stringify(d.blocks || []).includes(`"person":"${pid}"`));
   return `<article class="paper"><header class="doc-head"><span class="doc-no">KARTOTEKA</span><h2>Osoby w sprawie</h2></header>
     <p class="doc-sub">Zdjęcia z kartoteki i dokumentów tożsamości. Kliknij dokument, aby go otworzyć.</p>
     <div class="doc-body people-grid">${people.map(p => {
       const ds = docsOf(p.id);
-      return personCard(p, null, ds.length ? `<div class="pc-docs">${ds.map(d => `<button class="chip" data-doc="${esc(d.id)}">📄 ${esc(d.no ? `Dok. ${d.no}` : plain(d.title))}</button>`).join("")}</div>` : "");
+      return personCard(p, null, `<div class="pc-docs">${ds.map(d => `<button class="chip" data-doc="${esc(d.id)}">📄 ${esc(d.no ? `Dok. ${d.no}` : plain(d.title))}</button>`).join("")}${inRoom ? `<button class="chip pin-person" data-pin-person="${esc(p.id)}" title="Przypnij zdjęcie na tablicę">📌 Na tablicę</button>` : ""}</div>`);
     }).join("") || `<p class="empty">Ta sprawa nie ma listy osób.</p>`}</div></article>`;
 }
 
@@ -705,6 +705,7 @@ function newRoomState(room, caseData) {
     tlPrefill: null, tlEditing: null,
     conf: { found: [], wrong: 0 },    // sprzeczności
     rival: null,                      // postęp rywali
+    suspects: new Map(),              // user_id -> typ podejrzanego
   };
 }
 
@@ -793,6 +794,8 @@ async function route() {
   let m;
   if (h.startsWith("#/zdjecia")) { leaveChannel(); R = null; renderPhotoAdmin(); return; }
   if (h.startsWith("#/pokoje")) { leaveChannel(); R = null; renderRoomsAdmin(); return; }
+  if (h.startsWith("#/zgloszenia")) { leaveChannel(); R = null; renderReportsAdmin(); return; }
+  if (h.startsWith("#/statystyki")) { leaveChannel(); R = null; renderCaseStats(); return; }
   if ((m = h.match(/^#\/profil(?:\/([0-9a-zA-Z-]+))?/))) { leaveChannel(); R = null; renderProfile(m[1] || null); return; }
   if ((m = h.match(/^#\/join\/([A-Za-z0-9]+)/))) {
     try {
@@ -962,6 +965,142 @@ function plural(n, one, few, many) {
 }
 
 
+
+
+/* ------------------------------------------------------------------ */
+/*  Zgłoszenia błędów w sprawach                                       */
+/* ------------------------------------------------------------------ */
+function reportModal(doc, quote) {
+  if (!R) return;
+  const w = showModal("⚠️ Zgłoś błąd w sprawie", `<form class="prompt-form" id="reportForm">
+    <p class="small">Zgłoszenie trafi do admina. ${doc ? `Dokument: <b>${esc(doc.no ? `Dok. ${doc.no} — ` : "")}${esc(plain(doc.title || ""))}</b>` : ""}</p>
+    ${quote ? `<blockquote class="report-quote">„${esc(quote.slice(0, 300))}${quote.length > 300 ? "…" : ""}”</blockquote>` : ""}
+    <textarea name="text" rows="4" maxlength="1000" placeholder="Co jest nie tak? Np. literówka, inna godzina niż w dok. 15, brakujący fragment…" required></textarea>
+    <p class="small">Nie zdradzaj tu rozwiązania innym — zgłoszenie widzi tylko admin.</p>
+    <div class="row end"><button type="button" class="btn ghost" data-close>Anuluj</button><button class="btn primary">Wyślij zgłoszenie</button></div></form>`);
+  const f = $("#reportForm", w);
+  setTimeout(() => f.text.focus(), 30);
+  f.addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = $("button.primary", f); btn.disabled = true;
+    try {
+      await q(sb.rpc("report_case_error", { p_room: R.room.id, p_doc: doc?.id || null, p_doc_title: doc ? `${doc.no ? `Dok. ${doc.no}: ` : ""}${plain(doc.title || "")}` : null, p_text: f.text.value, p_quote: quote || null }));
+      w.remove(); toast("✅ Dziękujemy! Zgłoszenie wysłane do admina.", "ok");
+    } catch (err) { btn.disabled = false; toast(/function|report_case_error/i.test(errMsg(err)) ? "Uruchom ponownie schema.sql w Supabase (brak funkcji zgłoszeń)." : errMsg(err), "error", 6000); }
+  });
+}
+
+async function renderReportsAdmin() {
+  if (!isAdmin) { toast("Ta strona jest dostępna tylko dla admina.", "error"); location.replace("#/"); return; }
+  let rows = [], filter = "open";
+  app.innerHTML = `
+  <div class="lobby adm-reports">
+    <header class="lobby-top">${homeLink()}<div class="brand">🔎 ${esc(SITE)}</div><a class="btn tiny ghost" href="#/">← Lobby</a>${topbarUser()}</header>
+    <main class="profile-main">
+      <section class="panel"><div class="row wrap between"><h2>📮 Zgłoszenia błędów</h2><button class="btn tiny ghost" id="repRefresh">↻ Odśwież</button></div>
+        <p class="small">Gracze zgłaszają tu błędy w sprawach (przycisk ⚠️ przy dokumencie albo przy zaznaczonym fragmencie). Popraw sprawę w ✏️ Edytorze i wgraj ją ponownie, potem oznacz zgłoszenie jako załatwione.</p>
+        <div class="row wrap" id="repFilter"></div></section>
+      <div id="repList" class="adm-list"><p class="small">Wczytywanie…</p></div>
+    </main>
+  </div>`;
+  bindLogout();
+  const draw = () => {
+    const open = rows.filter(r => r.status === "open").length;
+    $("#repFilter").innerHTML = [["open", `Otwarte (${open})`], ["done", `Załatwione (${rows.length - open})`], ["all", `Wszystkie (${rows.length})`]]
+      .map(([k, l]) => `<button class="btn tiny ${filter === k ? "primary" : "ghost"}" data-f="${k}">${l}</button>`).join("");
+    $$("[data-f]", $("#repFilter")).forEach(b => b.addEventListener("click", () => { filter = b.dataset.f; draw(); }));
+    const list = rows.filter(r => filter === "all" || r.status === filter);
+    const byCase = {}; list.forEach(r => (byCase[r.case_id] = byCase[r.case_id] || []).push(r));
+    $("#repList").innerHTML = Object.entries(byCase).map(([cid, rs]) => `<section class="panel">
+      <h3>${esc(rs[0].case_title || cid)} <span class="small">${rs.length} ${plural(rs.length, "zgłoszenie", "zgłoszenia", "zgłoszeń")}${rs[0].case_exists ? "" : " · sprawa usunięta"}</span></h3>
+      ${rs.map(r => `<div class="report ${r.status}" data-id="${r.id}">
+        <div class="row between wrap"><span class="small">${r.doc_title ? `📄 <b>${esc(r.doc_title)}</b> · ` : ""}${avatarHtml({ name: r.user_name, avatar: r.user_avatar }, 18)} ${esc(r.user_name || "?")} · ${esc(timeAgo(r.created_at))}</span>
+          <span class="row">${r.status === "open" ? `<button class="btn tiny primary" data-done>✓ Załatwione</button>` : `<button class="btn tiny ghost" data-reopen>↺ Otwórz ponownie</button>`}<button class="btn tiny ghost danger" data-del>🗑</button></span></div>
+        ${r.quote ? `<blockquote class="report-quote">„${esc(r.quote)}”</blockquote>` : ""}
+        <p>${esc(r.text)}</p></div>`).join("")}
+      ${rs[0].case_exists ? `<a class="btn tiny ghost" href="#/edytor" data-edit="${esc(cid)}">✏️ Otwórz sprawę w edytorze</a>` : ""}</section>`).join("")
+      || `<section class="panel"><p class="empty">${filter === "open" ? "Brak otwartych zgłoszeń. 🎉" : "Brak zgłoszeń."}</p></section>`;
+    $$(".report", $("#repList")).forEach(el => {
+      const id = +el.dataset.id;
+      const set = async (status) => { try { await q(sb.from("case_reports").update({ status }).eq("id", id)); rows.find(r => r.id === id).status = status; draw(); } catch (e) { toast(errMsg(e), "error"); } };
+      $("[data-done]", el)?.addEventListener("click", () => set("done"));
+      $("[data-reopen]", el)?.addEventListener("click", () => set("open"));
+      $("[data-del]", el).addEventListener("click", async () => {
+        if (!(await confirmBox("Usunąć to zgłoszenie?", "Usuń"))) return;
+        try { await q(sb.from("case_reports").delete().eq("id", id)); rows = rows.filter(r => r.id !== id); draw(); } catch (e) { toast(errMsg(e), "error"); }
+      });
+    });
+    $$("[data-edit]", $("#repList")).forEach(a => a.addEventListener("click", async e => {
+      e.preventDefault();
+      try {
+        const [c, sec] = await Promise.all([q(sb.from("cases").select("data, visibility").eq("id", a.dataset.edit).single()), q(sb.from("case_secrets").select("data").eq("case_id", a.dataset.edit).single())]);
+        openEditor(mergeCase(c.data, sec.data), c.visibility === "public" ? { kind: "public", id: a.dataset.edit } : { kind: "file" });
+      } catch (err) { toast(errMsg(err), "error"); }
+    }));
+  };
+  const load = async () => {
+    try { rows = await q(sb.rpc("admin_list_reports")) || []; draw(); }
+    catch (e) { $("#repList").innerHTML = `<section class="panel"><p class="error">${esc(errMsg(e))}</p><p class="small">Jeśli to „Could not find the function”, uruchom ponownie <b>schema.sql</b>.</p></section>`; }
+  };
+  $("#repRefresh").addEventListener("click", load);
+  await load();
+}
+
+/* ------------------------------------------------------------------ */
+/*  Admin: statystyki spraw                                            */
+/* ------------------------------------------------------------------ */
+async function renderCaseStats() {
+  if (!isAdmin) { toast("Ta strona jest dostępna tylko dla admina.", "error"); location.replace("#/"); return; }
+  app.innerHTML = `
+  <div class="lobby adm-stats">
+    <header class="lobby-top">${homeLink()}<div class="brand">🔎 ${esc(SITE)}</div><a class="btn tiny ghost" href="#/">← Lobby</a>${topbarUser()}</header>
+    <main class="profile-main">
+      <section class="panel"><h2>📊 Statystyki spraw</h2>
+        <p class="small">Dane z rozegranych pokoi (także usuniętych). Pomagają wyłapać zbyt trudne wnioski i pytania. Sprawy własne graczy (z plików) nie są liczone.</p></section>
+      <div id="csList" class="adm-list"><p class="small">Wczytywanie…</p></div>
+    </main>
+  </div>`;
+  bindLogout();
+  let data;
+  try { data = await q(sb.rpc("admin_case_stats")) || []; }
+  catch (e) { $("#csList").innerHTML = `<section class="panel"><p class="error">${esc(errMsg(e))}</p><p class="small">Jeśli to „Could not find the function”, uruchom ponownie <b>schema.sql</b>.</p></section>`; return; }
+  const pct = (a, b) => b ? Math.round(a * 100 / b) : 0;
+  const bar = (p, cls = "") => `<span class="cs-bar ${cls}"><i style="width:${Math.max(0, Math.min(100, p))}%"></i></span>`;
+  $("#csList").innerHTML = data.map(c => {
+    const qs = c.questions || [], ans = c.answers || {};
+    const qLabel = (id) => plain(qs.find(x => x.id === id)?.label || id);
+    const optLabel = (qid, v) => { const qq = qs.find(x => x.id === qid); const o = (qq?.options || []).find(x => x.id === v); return o ? plain(o.label) : v; };
+    const solvedRate = pct(c.solved, c.rooms);
+    return `<section class="panel cs-case">
+      <div class="row between wrap"><h3>${esc(c.title)}${c.exists ? "" : ` <span class="badge">usunięta</span>`}</h3><span class="small">${esc(c.case_id)}</span></div>
+      <div class="stats small-stats">
+        <div class="stat"><div class="stat-val">${c.rooms}</div><div class="stat-lbl">pokoi</div></div>
+        <div class="stat"><div class="stat-val">${c.solved} <small>(${solvedRate}%)</small></div><div class="stat-lbl">rozwiązanych</div></div>
+        <div class="stat"><div class="stat-val">${c.players}</div><div class="stat-lbl">graczy</div></div>
+        <div class="stat"><div class="stat-val">${c.avg_pct ?? "—"}${c.avg_pct != null ? "%" : ""}</div><div class="stat-lbl">średni wynik${c.avg_total != null ? ` (${c.avg_total}/${c.max})` : ""}</div></div>
+        <div class="stat"><div class="stat-val">${c.avg_secs != null ? fmtDur(c.avg_secs) : "—"}</div><div class="stat-lbl">średni czas${c.best_secs != null ? ` · rekord ${fmtDur(c.best_secs)}` : ""}</div></div>
+        <div class="stat"><div class="stat-val">${c.avg_hints ?? "—"}</div><div class="stat-lbl">śr. podpowiedzi</div></div>
+      </div>
+      <p class="small">${["easy", "normal", "hard"].map(k => `${DIFF[k].icon} ${DIFF[k].label}: <b>${c.by_difficulty?.[k] || 0}</b>`).join(" · ")}${c.abandoned ? ` · przerwanych: <b>${c.abandoned}</b>` : ""}</p>
+      ${c.rooms ? `
+      <h4>🗝️ Wnioski <span class="small">— gdzie drużyny utykają</span></h4>
+      ${(c.unlocks || []).length ? `<div class="tablewrap"><table class="lb cs-tbl"><thead><tr><th>Wniosek</th><th>Odblokowało</th><th>Błędne próby</th><th>Najczęstsze błędne odpowiedzi</th></tr></thead><tbody>
+        ${c.unlocks.map(u => `<tr class="${u.tried_rooms && pct(u.ok_rooms, c.rooms) < 50 ? "warnrow" : ""}"><td>${esc(u.title || u.id)}</td>
+          <td>${bar(pct(u.ok_rooms, c.rooms))} ${u.ok_rooms}/${c.rooms}</td><td>${u.fails}${u.ok_rooms ? ` <span class="small">(${(u.fails / Math.max(1, u.tried_rooms)).toFixed(1)}/drużynę)</span>` : ""}</td>
+          <td class="small">${(u.top_wrong || []).map(w => `<code>${esc(w.answer || "—")}</code>×${w.n}`).join(" ") || "—"}</td></tr>`).join("")}
+      </tbody></table></div>` : `<p class="small">Brak prób wniosków.</p>`}
+      <h4>❓ Odpowiedzi końcowe</h4>
+      ${Object.keys(ans).length ? `<div class="tablewrap"><table class="lb cs-tbl"><thead><tr><th>Pytanie</th><th>Trafność</th><th>Podpowiedzi</th><th>Co odpowiadano</th></tr></thead><tbody>
+        ${(qs.length ? qs.map(x => x.id) : Object.keys(ans)).filter(id => ans[id]).map(id => { const a = ans[id], p = pct(a.correct, a.n);
+          return `<tr class="${p < 50 ? "warnrow" : ""}"><td>${esc(qLabel(id))}</td><td>${bar(p, p < 50 ? "bad" : "ok")} ${p}% <span class="small">(${a.correct}/${a.n})</span></td><td>${c.hints?.[id] || 0}</td>
+            <td class="small">${Object.entries(a.dist || {}).sort((x, y) => y[1] - x[1]).map(([v, n]) => `<code>${esc(String(optLabel(id, v)).slice(0, 50))}</code>×${n}`).join(" ")}</td></tr>`; }).join("")}
+      </tbody></table></div>` : `<p class="small">Nikt jeszcze nie wysłał odpowiedzi.</p>`}
+      ${Object.keys(c.confronts?.found || {}).length || c.confronts?.wrong ? `<h4>⚔️ Sprzeczności</h4>
+        <p class="small">${Object.entries(c.confronts.found || {}).map(([t, n]) => `${esc(plain(t))}: <b>${n}/${c.rooms}</b>`).join(" · ") || "żadnej nie znaleziono"} · nietrafione konfrontacje: <b>${c.confronts.wrong}</b></p>` : ""}
+      ` : `<p class="small">Tej sprawy nikt jeszcze nie grał.</p>`}
+    </section>`;
+  }).join("") || `<section class="panel"><p class="empty">Brak spraw.</p></section>`;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Admin: wszystkie pokoje                                            */
@@ -1243,6 +1382,8 @@ async function renderLobby() {
           <label class="btn primary file-btn">⬆ Wgraj sprawę (.json)<input type="file" id="uploadCase" accept=".json,application/json" hidden></label>
           <label class="btn ghost file-btn">👁 Podgląd pliku<input type="file" id="previewCase" accept=".json,application/json" hidden></label>
           <a class="btn ghost" href="#/pokoje">🏢 Wszystkie pokoje</a>
+          <a class="btn ghost" href="#/statystyki">📊 Statystyki spraw</a>
+          <a class="btn ghost" href="#/zgloszenia" id="reportsLink">📮 Zgłoszenia</a>
           <a class="btn ghost" href="#/zdjecia">🖼 Baza zdjęć osób</a>
         </div>
         <div id="uploadInfo"></div>
@@ -1264,6 +1405,7 @@ async function renderLobby() {
   $("#streamBtn").addEventListener("click", () => { toggleStreamer(); renderLobby(); });
   bindSoundButton();
   loadMyRooms().then(loadCases);
+  if (isAdmin) q(sb.rpc("admin_list_reports")).then(rows => { const n = (rows || []).filter(r => r.status === "open").length; const l = $("#reportsLink"); if (l && n) l.innerHTML = `📮 Zgłoszenia <span class="badge warn">${n}</span>`; }).catch(() => {});
 }
 
 let mySolved = new Set();
@@ -1563,6 +1705,7 @@ async function openRoom(id) {
     items.forEach(i => R.items.set(i.id, i));
     links.forEach(l => R.links.set(l.id, l));
     if (notes) R.notes = notes;
+    try { (await q(sb.from("room_suspects").select("*").eq("room_id", id))).forEach(x => R.suspects.set(x.user_id, x.suspect)); } catch { /* starsza baza */ }
     const [hls, tl, draft, votes] = await Promise.all([
       q(sb.from("room_highlights").select("*").eq("room_id", id)),
       q(sb.from("room_timeline").select("*").eq("room_id", id)),
@@ -1610,6 +1753,7 @@ function leaveChannel() {
   stopRoomTimers();
   hideSelBar();
   if (channel) { sb.removeChannel(channel); channel = null; }
+  if (typeof LIVE !== "undefined") { LIVE.cursors.clear(); clearInterval(LIVE.gc); }
 }
 
 function subscribeRoom(id) {
@@ -1669,6 +1813,7 @@ function subscribeRoom(id) {
     if (R.tab === "tablica") { $(`.card[data-id="${p.old.id}"]`)?.remove(); drawLinks(); }
   });
   on("board_links", "INSERT", f, p => { R.links.set(p.new.id, p.new); if (R.tab === "tablica") drawLinks(); });
+  on("board_links", "UPDATE", f, p => { R.links.set(p.new.id, p.new); if (R.tab === "tablica") drawLinks(); });
   on("board_links", "DELETE", null, p => {
     if (!p.old?.id || !R.links.has(p.old.id)) return;
     R.links.delete(p.old.id); if (R.tab === "tablica") drawLinks();
@@ -1694,9 +1839,12 @@ function subscribeRoom(id) {
   on("room_drafts", "*", f, p => { if (p.new && p.new.room_id) onRemoteDraft(p.new); });
   on("room_votes", "INSERT", f, p => { R.votes.set(p.new.user_id, p.new.version); renderVotes(); });
   on("room_votes", "UPDATE", f, p => { R.votes.set(p.new.user_id, p.new.version); renderVotes(); });
+  on("room_suspects", "*", f, () => scheduleRefresh(["suspects"]));
   on("room_votes", "DELETE", null, p => { if (p.old?.room_id === id && p.old.user_id) { R.votes.delete(p.old.user_id); renderVotes(); } });
   // Drugi, niezależny kanał: gracz po swojej zmianie wysyła sygnał „odśwież” do reszty drużyny
-  channel.on("broadcast", { event: "sync" }, ({ payload }) => scheduleRefresh(payload?.kinds || []));
+  channel.on("broadcast", { event: "sync" }, ({ payload }) => { if (!payload?.t) scheduleRefresh(payload?.kinds || []); });
+  // Sygnały na żywo bez zapisu w bazie: kursory na tablicy, przesuwanie, „pokaż drużynie”
+  channel.on("broadcast", { event: "live" }, ({ payload }) => onLive(payload));
   channel.on("presence", { event: "sync" }, () => {
     const st = channel.presenceState();
     R.presence = {};
@@ -1711,7 +1859,7 @@ function subscribeRoom(id) {
   });
 }
 /* ---- synchronizacja: sygnały od drużyny + okresowe dociąganie zmian ---- */
-const ALL_KINDS = ["board", "notes", "timeline", "hl", "unlocks", "hints", "draft", "conf", "room", "events", "members"];
+const ALL_KINDS = ["board", "notes", "timeline", "hl", "unlocks", "hints", "draft", "conf", "room", "events", "members", "suspects"];
 let pendingKinds = new Set(), refreshTimer = null, syncTimer = null, refreshing = false;
 function ping(...kinds) {
   if (!channel) return;
@@ -1847,6 +1995,13 @@ const REFRESH = {
     }
     R.events.sort((a, b) => b.id - a.id);
     if (R.tab === "notatki") renderEventLog();
+  },
+  async suspects(id) {
+    let rows;
+    try { rows = await q(sb.from("room_suspects").select("*").eq("room_id", id)); } catch { return; }
+    const next = new Map(rows.map(x => [x.user_id, x.suspect]));
+    if (next.size === R.suspects.size && [...next].every(([u, v]) => R.suspects.get(u) === v)) return;
+    R.suspects = next; renderSuspects();
   },
   async members(id) {
     const rows = await q(sb.from("room_members").select("user_id, profiles(name, avatar)").eq("room_id", id));
@@ -2148,12 +2303,12 @@ function renderAkta(v) {
   } else if (R.docId === "__inbox") {
     content = renderInbox();
   } else if (R.docId === "__people") {
-    content = renderPeoplePage(R.caseData, groups.all);
+    content = `<div class="suspects-slot paper-slot">${suspectPanelHtml()}</div>` + renderPeoplePage(R.caseData, groups.all, true);
   } else if (R.docId === "__conf") {
     content = renderConfPage();
   } else {
     const d = groups.all.find(x => x.id === R.docId);
-    content = d ? renderDoc(d) + `<div class="doc-actions"><span class="small">Zaznacz fragment tekstu, aby go zakreślić 🖍</span><span class="row">${R.caseData.conf_count ? `<button class="btn" id="confBtn" title="Zestaw ten dokument z innym, który mu przeczy">⚔️ Konfrontuj</button>` : ""}<button class="btn" id="pinBtn">📌 Przypnij na tablicę</button></span></div>`
+    content = d ? renderDoc(d) + `<div class="doc-actions"><span class="small">Zaznacz fragment tekstu, aby go zakreślić 🖍</span><span class="row">${R.caseData.conf_count ? `<button class="btn" id="confBtn" title="Zestaw ten dokument z innym, który mu przeczy">⚔️ Konfrontuj</button>` : ""}<button class="btn" id="pinBtn">📌 Przypnij na tablicę</button><button class="btn ghost" id="reportBtn" title="Zgłoś adminowi błąd w tym dokumencie (literówka, sprzeczność, która nie powinna istnieć…)">⚠️ Zgłoś błąd</button></span></div>`
                 : `<p class="empty">Wybierz dokument z listy.</p>`;
   }
   v.innerHTML = `
@@ -2185,6 +2340,7 @@ function renderAkta(v) {
     $(".viewer", v)?.scrollTo?.(0, 0); if (window.innerWidth < 860) window.scrollTo(0, 0);
   }));
   $("#pinBtn", v)?.addEventListener("click", () => pinDoc(R.docId));
+  $("#reportBtn", v)?.addEventListener("click", () => reportModal(allDocs().find(x => x.id === R.docId), ""));
   $("#confBtn", v)?.addEventListener("click", () => confrontModal(R.docId));
   const cf = $("#confForm", v);
   cf?.addEventListener("submit", e => { e.preventDefault(); doConfront(cf.a.value, cf.b.value); });
@@ -2314,7 +2470,7 @@ function bindBoardView() {
   }, { passive: false });
   const ptrs = new Map();
   let pan = null, pinch = null;
-  const onBg = (e) => !e.target.closest(".card") && !e.target.closest("[data-link]");
+  const onBg = (e) => !e.target.closest(".card:not(.zone)") && !e.target.closest(".zone-head, .zone-resize") && !e.target.closest("[data-link]");
   wrap.addEventListener("pointerdown", e => {
     if (e.button !== undefined && e.button !== 0 && e.pointerType === "mouse") return;
     if (!onBg(e)) return;
@@ -2329,6 +2485,8 @@ function bindBoardView() {
     }
     if (document.activeElement?.matches?.("textarea")) document.activeElement.blur();
   });
+  wrap.addEventListener("pointermove", e => sendCursor(e, wrap));
+  wrap.addEventListener("pointerleave", () => bcast("cur", { x: null }));
   wrap.addEventListener("pointermove", e => {
     if (!ptrs.has(e.pointerId)) return;
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -2368,9 +2526,10 @@ function renderBoard(v) {
   v.innerHTML = `
   <div class="boardbar">
     <button class="btn" id="addNote">＋ Karteczka</button>
+    <button class="btn" id="addZone" title="Ramka/strefa, do której wrzucasz karteczki">▭ Strefa</button>
     <button class="btn ${R.linkMode ? "primary" : ""}" id="linkMode">🧵 ${R.linkMode ? "Łączenie: kliknij 2 elementy" : "Połącz nitką"}</button>
     <span class="zoombar"><button class="btn tiny ghost" id="zoomOut" title="Oddal">−</button><span id="zoomVal" class="small">100%</span><button class="btn tiny ghost" id="zoomIn" title="Przybliż">＋</button><button class="btn tiny ghost" id="zoomFit" title="Pokaż wszystko">⤢ Wszystko</button></span>
-    <span class="small board-help">🖱 Kółko — przybliżanie do kursora · przeciągnij tło — przesuwanie · przeciągaj elementy · kliknij nitkę, by ją usunąć.</span>
+    <span class="small board-help">🖱 Kółko — przybliżanie do kursora · przeciągnij tło — przesuwanie · przeciągaj elementy · kliknij nitkę, by ją opisać lub usunąć · zdjęcia osób przypniesz z Kartoteki.</span>
   </div>
   <div class="board-wrap"><div class="board" id="board" style="width:${BOARD_W}px;height:${BOARD_H}px">
     <svg class="links" id="links" width="${BOARD_W}" height="${BOARD_H}"></svg>
@@ -2380,6 +2539,7 @@ function renderBoard(v) {
   requestAnimationFrame(drawLinks);
   bindBoardView();
   applyBoardView(false);
+  drawAllCursors(); startLiveGc();
   if (boardView().auto && R.items.size) requestAnimationFrame(() => requestAnimationFrame(fitBoard));
   const zc = (f) => { const w = $(".board-wrap"); zoomAt(w.clientWidth / 2, w.clientHeight / 2, f); };
   $("#zoomIn").addEventListener("click", () => zc(1.25));
@@ -2395,12 +2555,10 @@ function renderBoard(v) {
     } catch (e) { toast(errMsg(e), "error"); }
   });
   $("#linkMode").addEventListener("click", () => { R.linkMode = !R.linkMode; R.linkFrom = null; renderBoard(v); });
-  $("#links").addEventListener("click", async e => {
+  $("#addZone").addEventListener("click", zoneModal);
+  $("#links").addEventListener("click", e => {
     const line = e.target.closest("[data-link]");
-    if (!line) return;
-    if (!await confirmBox("Usunąć tę nitkę?", "Usuń")) return;
-    try { await q(sb.from("board_links").delete().eq("id", line.dataset.link)); R.links.delete(line.dataset.link); drawLinks(); ping("board"); }
-    catch (err) { toast(errMsg(err), "error"); }
+    if (line) linkModal(line.dataset.link);
   });
 }
 
@@ -2420,6 +2578,17 @@ function cardInner(it) {
       <div class="card-actions">${d ? `<button class="btn tiny ghost" data-act="open">Otwórz</button>` : ""}<button class="btn tiny ghost" data-act="del" title="Usuń">✕</button></div>
       <div class="card-by">${esc(by)}</div>`;
   }
+  if (it.kind === "person") {
+    const p = personById(it.ref, R.caseData);
+    return `<i class="pin"></i><div class="card-photo">${faceImg(it.ref)}</div>
+      <div class="card-pname">${p ? personLine(p) : "(osoba)"}</div>${p?.role ? `<div class="card-role">${inline(p.role)}</div>` : ""}
+      <div class="card-actions"><button class="btn tiny ghost" data-act="open">Kartoteka</button><button class="btn tiny ghost" data-act="del" title="Zdejmij">✕</button></div>`;
+  }
+  if (it.kind === "zone") {
+    return `<div class="zone-head"><span class="zone-title">${esc(it.text || "Strefa")}</span>
+      <span class="zone-btns"><button class="btn tiny ghost" data-act="rename" title="Zmień nazwę">✏️</button><button class="btn tiny ghost" data-act="color" title="Kolor">🎨</button><button class="btn tiny ghost" data-act="del" title="Usuń strefę (karteczki zostaną)">✕</button></span></div>
+      <i class="zone-resize" title="Zmień rozmiar"></i>`;
+  }
   return `<i class="pin"></i><textarea maxlength="400" placeholder="Wpisz trop…">${esc(it.text || "")}</textarea>
     <div class="card-actions"><button class="btn tiny ghost" data-act="color" title="Kolor">🎨</button><button class="btn tiny ghost" data-act="del" title="Usuń">✕</button></div>
     <div class="card-by">${esc(by)}</div>`;
@@ -2430,6 +2599,7 @@ function cardEl(it) {
   el.className = `card ${it.kind} c-${it.color || "yellow"}`;
   el.dataset.id = it.id;
   el.style.left = it.x + "px"; el.style.top = it.y + "px";
+  if (it.kind === "zone") { el.style.width = (it.w || 520) + "px"; el.style.height = (it.h || 360) + "px"; }
   el.innerHTML = cardInner(it);
   bindCard(el);
   return el;
@@ -2442,6 +2612,10 @@ function upsertCard(it) {
   if (!old) { board.appendChild(cardEl(it)); drawLinks(); return; }
   old.style.left = it.x + "px"; old.style.top = it.y + "px";
   old.className = `card ${it.kind} c-${it.color || "yellow"}${R.linkFrom === it.id ? " selected" : ""}`;
+  if (it.kind === "zone") {
+    old.style.width = (it.w || 520) + "px"; old.style.height = (it.h || 360) + "px";
+    const t = $(".zone-title", old); if (t && t.textContent !== (it.text || "Strefa")) t.textContent = it.text || "Strefa";
+  }
   const ta = $("textarea", old);
   if (ta && document.activeElement !== ta && ta.value !== (it.text || "")) { ta.value = it.text || ""; ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight + 2, 320) + "px"; }
   drawLinks();
@@ -2450,13 +2624,16 @@ function upsertCard(it) {
 function bindCard(el) {
   const id = el.dataset.id;
   let start = null, moved = false;
+  const isZone = el.classList.contains("zone");
   el.addEventListener("pointerdown", e => {
     if (e.target.closest("button")) return;
-    if (R.linkMode) { e.preventDefault(); linkClick(id); return; }
+    if (isZone && !e.target.closest(".zone-head, .zone-resize")) return;   // wnętrze strefy = tło tablicy
+    if (R.linkMode && !isZone) { e.preventDefault(); linkClick(id); return; }
     if (e.target.closest("textarea")) return;
-    e.preventDefault();
+    e.preventDefault(); e.stopPropagation();
     const it = R.items.get(id);
-    start = { x: e.clientX, y: e.clientY, ox: it.x, oy: it.y }; moved = false;
+    start = { x: e.clientX, y: e.clientY, ox: it.x, oy: it.y, w: it.w || el.offsetWidth, h: it.h || el.offsetHeight,
+              resize: !!e.target.closest(".zone-resize"), kids: isZone && !e.target.closest(".zone-resize") ? zoneChildren(it) : [] }; moved = false;
     R.dragging = id; el.classList.add("dragging");
     el.setPointerCapture(e.pointerId);
   });
@@ -2466,17 +2643,42 @@ function bindCard(el) {
     const sc = boardView().s;
     const dx = (e.clientX - start.x) / sc, dy = (e.clientY - start.y) / sc;
     if (Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) > 3) moved = true;
+    if (start.resize) {
+      it.w = Math.round(Math.max(220, Math.min(BOARD_W - it.x, start.w + dx)));
+      it.h = Math.round(Math.max(140, Math.min(BOARD_H - it.y, start.h + dy)));
+      el.style.width = it.w + "px"; el.style.height = it.h + "px";
+      sendMove(it);
+      return;
+    }
+    if (start.kids.length) {
+      const nx = Math.max(0, Math.min(BOARD_W - el.offsetWidth, start.ox + dx)), ny = Math.max(0, Math.min(BOARD_H - el.offsetHeight, start.oy + dy));
+      const ddx = nx - start.ox, ddy = ny - start.oy, now = Date.now(), live = now - LIVE.lastMove >= 70;
+      start.kids.forEach(k => { const ci = R.items.get(k.id); if (!ci) return; ci.x = k.x + ddx; ci.y = k.y + ddy;
+        const ce = $(`.card[data-id="${CSS.escape(k.id)}"]`); if (ce) { ce.style.left = ci.x + "px"; ce.style.top = ci.y + "px"; }
+        if (live) bcast("mv", { id: ci.id, x: Math.round(ci.x), y: Math.round(ci.y) }); });
+    }
     it.x = Math.max(0, Math.min(BOARD_W - el.offsetWidth, start.ox + dx));
     it.y = Math.max(0, Math.min(BOARD_H - el.offsetHeight, start.oy + dy));
     el.style.left = it.x + "px"; el.style.top = it.y + "px";
     drawLinks();
+    sendMove(it);
   });
   const end = async () => {
     if (!start) return;
+    const start0 = start;
     start = null; el.classList.remove("dragging");
     const it = R.items.get(id);
     if (moved) {
-      try { await q(sb.from("board_items").update({ x: it.x, y: it.y, updated_at: new Date().toISOString() }).eq("id", id)); ping("board"); }
+      sendMove(it, true);
+      const kids = (start0.kids || []).map(k => R.items.get(k.id)).filter(Boolean);
+      kids.forEach(ci => bcast("mv", { id: ci.id, x: Math.round(ci.x), y: Math.round(ci.y) }));
+      try {
+        await Promise.all([
+          q(sb.from("board_items").update({ x: it.x, y: it.y, ...(it.kind === "zone" ? { w: it.w || el.offsetWidth, h: it.h || el.offsetHeight } : {}), updated_at: new Date().toISOString() }).eq("id", id)),
+          ...kids.map(ci => q(sb.from("board_items").update({ x: ci.x, y: ci.y, updated_at: new Date().toISOString() }).eq("id", ci.id))),
+        ]);
+        ping("board");
+      }
       catch (e) { toast(errMsg(e), "error"); }
     }
     setTimeout(() => { if (R.dragging === id) R.dragging = null; }, 300);
@@ -2488,9 +2690,14 @@ function bindCard(el) {
     if (!b) return;
     const it = R.items.get(id);
     if (b.dataset.act === "open") {
-      openDoc(it.ref);
+      openDoc(it.kind === "person" ? "__people" : it.ref);
+    } else if (b.dataset.act === "rename") {
+      const name = await promptBox("Nazwa strefy", it.text || "", ZONE_PRESETS);
+      if (name == null) return;
+      it.text = name.slice(0, 60) || "Strefa"; upsertCard(it);
+      try { await q(sb.from("board_items").update({ text: it.text }).eq("id", id)); ping("board"); } catch (err) { toast(errMsg(err), "error"); }
     } else if (b.dataset.act === "del") {
-      if (!await confirmBox(it.kind === "doc" ? "Zdjąć dokument z tablicy?" : it.kind === "quote" ? "Usunąć cytat z tablicy?" : "Usunąć karteczkę?", "Usuń")) return;
+      if (!await confirmBox(it.kind === "doc" ? "Zdjąć dokument z tablicy?" : it.kind === "quote" ? "Usunąć cytat z tablicy?" : it.kind === "person" ? "Zdjąć zdjęcie z tablicy?" : it.kind === "zone" ? "Usunąć strefę? Karteczki w niej zostaną na tablicy." : "Usunąć karteczkę?", "Usuń")) return;
       try {
         await q(sb.from("board_items").delete().eq("id", id)); ping("board");
         R.items.delete(id);
@@ -2513,6 +2720,84 @@ function bindCard(el) {
     requestAnimationFrame(grow);
     ta.addEventListener("input", () => { const it = R.items.get(id); if (it) it.text = ta.value; grow(); save(); });
   }
+}
+
+
+/* ---- strefy, osoby i opisane nitki ---- */
+const ZONE_PRESETS = ["Podejrzani", "Wykluczeni", "Alibi potwierdzone", "Oś wydarzeń", "Motywy", "Dowody kluczowe", "Do sprawdzenia"];
+const LINK_COLORS = { red: "czerwona", blue: "niebieska", green: "zielona", black: "czarna", yellow: "żółta" };
+const LINK_PRESETS = ["kłamie", "alibi", "motyw", "widział(a)", "zna", "sprzeczność", "potwierdza", "dług"];
+function zoneChildren(z) {
+  const zw = z.w || 520, zh = z.h || 360;
+  return [...R.items.values()].filter(i => i.kind !== "zone" && i.id !== z.id).filter(i => {
+    const el = $(`.card[data-id="${CSS.escape(i.id)}"]`); const w = el?.offsetWidth || 200, h = el?.offsetHeight || 100;
+    const cx = i.x + w / 2, cy = i.y + h / 2;
+    return cx >= z.x && cx <= z.x + zw && cy >= z.y && cy <= z.y + zh;
+  }).map(i => ({ id: i.id, x: i.x, y: i.y }));
+}
+function promptBox(title, value = "", presets = []) {
+  return new Promise(res => {
+    const w = showModal(esc(title), `<form class="prompt-form">
+      ${presets.length ? `<div class="chips">${presets.map(p => `<button type="button" class="chip" data-p="${esc(p)}">${esc(p)}</button>`).join("")}</div>` : ""}
+      <input name="v" maxlength="60" value="${esc(value)}" autocomplete="off">
+      <div class="row end"><button type="button" class="btn ghost" data-close>Anuluj</button><button class="btn primary">Zapisz</button></div></form>`);
+    let done = false;
+    const fin = v => { if (done) return; done = true; w.remove(); res(v); };
+    const f = $("form", w), inp = f.v;
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
+    $$("[data-p]", w).forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.p; inp.focus(); }));
+    f.addEventListener("submit", e => { e.preventDefault(); fin(inp.value.trim()); });
+    $$("[data-close]", w).forEach(b => b.addEventListener("click", () => fin(null)));
+    w.addEventListener("click", e => { if (e.target === w) fin(null); });
+  });
+}
+async function zoneModal() {
+  const name = await promptBox("Nowa strefa na tablicy", "", ZONE_PRESETS);
+  if (name == null) return;
+  const c = boardCenter();
+  const x = Math.max(0, Math.min(BOARD_W - 520, c.x - 160)), y = Math.max(0, Math.min(BOARD_H - 360, c.y - 120));
+  try {
+    const row = await q(sb.from("board_items").insert({ room_id: R.room.id, kind: "zone", text: (name || "Strefa").slice(0, 60), color: COLORS[[...R.items.values()].filter(i => i.kind === "zone").length % COLORS.length], x, y, w: 520, h: 360 }).select().single());
+    ping("board"); R.items.set(row.id, row); upsertCard(row);
+  } catch (e) { toast(/check constraint|board_items_kind/i.test(errMsg(e)) ? "Uruchom ponownie schema.sql w Supabase, żeby włączyć strefy." : errMsg(e), "error", 6000); }
+}
+async function pinPerson(pid) {
+  if (!R) return;
+  if ([...R.items.values()].some(i => i.kind === "person" && i.ref === pid)) { toast("To zdjęcie już wisi na tablicy.", "info"); return; }
+  const pos = R.tab === "tablica" ? boardCenter() : { x: 80 + (R.items.size % 8) * 230, y: 80 + Math.floor(R.items.size / 8) * 170 };
+  try {
+    const row = await q(sb.from("board_items").insert({ room_id: R.room.id, kind: "person", ref: pid, x: pos.x, y: pos.y }).select().single());
+    ping("board"); R.items.set(row.id, row); upsertCard(row);
+    toast("📌 Zdjęcie przypięte na tablicy.", "ok");
+  } catch (e) { toast(/check constraint|board_items_kind/i.test(errMsg(e)) ? "Uruchom ponownie schema.sql w Supabase, żeby przypinać osoby." : errMsg(e), "error", 6000); }
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-pin-person]"); if (b && R) { e.preventDefault(); pinPerson(b.dataset.pinPerson); } });
+function linkModal(linkId) {
+  const l = R.links.get(linkId);
+  if (!l) return;
+  const nm = id => { const it = R.items.get(id); if (!it) return "?"; if (it.kind === "person") return plain(personById(it.ref, R.caseData)?.name || "osoba");
+    if (it.kind === "doc" || it.kind === "quote") { const d = allDocs().find(x => x.id === it.ref); return d ? `dok. ${d.no || ""}` : "dokument"; } return `„${String(it.text || "karteczka").slice(0, 24)}”`; };
+  const w = showModal("🧵 Nitka", `<p class="small">${esc(nm(l.a))} ⟷ ${esc(nm(l.b))}</p>
+    <form class="prompt-form" id="linkForm">
+      <label class="small">Podpis (opcjonalnie)</label>
+      <div class="chips">${LINK_PRESETS.map(p => `<button type="button" class="chip" data-p="${esc(p)}">${esc(p)}</button>`).join("")}</div>
+      <input name="label" maxlength="60" value="${esc(l.label || "")}" placeholder="np. kłamie o godzinie" autocomplete="off">
+      <label class="small">Kolor</label>
+      <div class="link-colors">${Object.entries(LINK_COLORS).map(([k, n]) => `<label class="lc lc-${k}"><input type="radio" name="color" value="${k}" ${(l.color || "red") === k ? "checked" : ""}><span></span>${n}</label>`).join("")}</div>
+      <div class="row between"><button type="button" class="btn danger" data-del>🗑 Usuń nitkę</button><span class="row"><button type="button" class="btn ghost" data-close>Anuluj</button><button class="btn primary">Zapisz</button></span></div>
+    </form>`);
+  const f = $("#linkForm", w);
+  $$("[data-p]", w).forEach(b => b.addEventListener("click", () => { f.label.value = b.dataset.p; }));
+  f.addEventListener("submit", async e => {
+    e.preventDefault();
+    const patch = { label: f.label.value.trim().slice(0, 60), color: f.color.value || "red" };
+    try { await q(sb.from("board_links").update(patch).eq("id", l.id)); Object.assign(l, patch); drawLinks(); ping("board"); w.remove(); }
+    catch (err) { toast(/column|label|color/i.test(errMsg(err)) ? "Uruchom ponownie schema.sql w Supabase, żeby opisywać nitki." : errMsg(err), "error", 6000); }
+  });
+  $("[data-del]", w).addEventListener("click", async () => {
+    try { await q(sb.from("board_links").delete().eq("id", l.id)); R.links.delete(l.id); drawLinks(); ping("board"); w.remove(); }
+    catch (err) { toast(errMsg(err), "error"); }
+  });
 }
 
 async function linkClick(id) {
@@ -2547,7 +2832,10 @@ function drawLinks() {
     if (!p1 || !p2) return "";
     const mx = (p1.x + p2.x) / 2, my = Math.max(p1.y, p2.y) + 40;
     const d = `M${p1.x},${p1.y} Q${mx},${my} ${p2.x},${p2.y}`;
-    return `<g class="link" data-link="${esc(l.id)}"><path class="hit" d="${d}"/><path class="thread" d="${d}"/></g>`;
+    const lx = 0.25 * p1.x + 0.5 * mx + 0.25 * p2.x, ly = 0.25 * p1.y + 0.5 * my + 0.25 * p2.y;
+    const col = LINK_COLORS[l.color] ? l.color : "red";
+    return `<g class="link lk-${col}" data-link="${esc(l.id)}"><path class="hit" d="${d}"/><path class="thread" d="${d}"/>
+      ${l.label ? `<text class="link-label" x="${lx}" y="${ly + 5}" text-anchor="middle">${esc(l.label)}</text>` : ""}</g>`;
   }).join("");
 }
 
@@ -2651,6 +2939,7 @@ function renderAnswer(v) {
         Podpowiedzi: ${R.hints.length}${diffOf() === "easy" ? ` (pierwsze 3 gratis)` : ""}. Liczy się też czas ⏱ — najlepsze drużyny trafiają do rankingu.</p>
       ${R.caseData.conf_count ? `<p class="small">⚔️ Sprzeczności: znalezione <b>${R.conf.found.length}/${R.caseData.conf_count}</b>, nietrafione ${R.conf.wrong} → bonus <b>+${confBonus()} pkt</b>.</p>` : ""}
     </section>
+    ${suspectOptions().length ? `<section class="panel suspects-slot">${suspectPanelHtml()}</section>` : ""}
     <form id="answerForm" onsubmit="return false">
     ${(c.questions || []).map(qq => {
       const hs = hintsFor(qq.id), total = c.hint_counts?.[qq.id] || 0;
@@ -3130,6 +3419,153 @@ function renderRivalPanel() {
   });
 }
 
+
+/* ------------------------------------------------------------------ */
+/*  Na żywo: kursory drużyny, przesuwanie elementów, „Pokaż drużynie”  */
+/* ------------------------------------------------------------------ */
+const LIVE = { cursors: new Map(), lastCur: 0, lastMove: 0, gc: null };
+function bcast(t, data = {}) {
+  if (!channel || !me) return;
+  try { channel.send({ type: "broadcast", event: "live", payload: { t, uid: me.id, name: me.name, ...data } }); } catch { /* ignore */ }
+}
+function userHue(uid) { let h = 0; for (const ch of String(uid || "")) h = (h * 37 + ch.charCodeAt(0)) >>> 0; return h % 360; }
+function onLive(p) {
+  if (!p?.t || !R || p.uid === me?.id) return;
+  if (p.t === "cur") {
+    if (p.x == null) { LIVE.cursors.delete(p.uid); $(`.rcursor[data-uid="${CSS.escape(p.uid)}"]`)?.remove(); return; }
+    LIVE.cursors.set(p.uid, { x: p.x, y: p.y, drag: p.drag || null, name: p.name, ts: Date.now() });
+    drawCursor(p.uid);
+  } else if (p.t === "mv") {
+    const it = R.items.get(p.id);
+    if (!it || R.dragging === p.id) return;
+    it.x = p.x; it.y = p.y;
+    if (p.w) { it.w = p.w; it.h = p.h; }
+    upsertCard(it);
+    const el = $(`.card[data-id="${CSS.escape(p.id)}"]`);
+    if (el) { el.classList.add("remote-drag"); el.style.setProperty("--rc", `hsl(${userHue(p.uid)} 80% 55%)`); clearTimeout(el.__rd); el.__rd = setTimeout(() => el.classList.remove("remote-drag"), 700); }
+  } else if (p.t === "show") {
+    showTeamNotice(p);
+  }
+}
+function drawCursor(uid) {
+  const board = $("#board"), c = LIVE.cursors.get(uid);
+  if (!board || !c) return;
+  let el = $(`.rcursor[data-uid="${CSS.escape(uid)}"]`, board);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "rcursor"; el.dataset.uid = uid;
+    el.style.setProperty("--rc", `hsl(${userHue(uid)} 80% 55%)`);
+    el.innerHTML = `<svg viewBox="0 0 16 20" width="16" height="20"><path d="M1 1 L1 16 L5 12 L8 19 L11 18 L8 11 L14 11 Z" fill="var(--rc)" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/></svg><span></span>`;
+    board.appendChild(el);
+  }
+  el.style.left = c.x + "px"; el.style.top = c.y + "px";
+  const it = c.drag ? R.items.get(c.drag) : null;
+  $("span", el).textContent = it ? `${c.name || prof(uid).name} przesuwa…` : (c.name || prof(uid).name);
+}
+function drawAllCursors() { LIVE.cursors.forEach((_, uid) => drawCursor(uid)); }
+function startLiveGc() {
+  clearInterval(LIVE.gc);
+  LIVE.gc = setInterval(() => {
+    const now = Date.now();
+    LIVE.cursors.forEach((c, uid) => { if (now - c.ts > 6000) { LIVE.cursors.delete(uid); $(`.rcursor[data-uid="${CSS.escape(uid)}"]`)?.remove(); } });
+  }, 2000);
+}
+function sendCursor(e, wrap) {
+  const now = Date.now();
+  if (now - LIVE.lastCur < 60) return;
+  LIVE.lastCur = now;
+  const r = wrap.getBoundingClientRect(), v = boardView();
+  bcast("cur", { x: Math.round((e.clientX - r.left - v.tx) / v.s), y: Math.round((e.clientY - r.top - v.ty) / v.s), drag: R.dragging || null });
+}
+function sendMove(it, force = false) {
+  const now = Date.now();
+  if (!force && now - LIVE.lastMove < 70) return;
+  LIVE.lastMove = now;
+  bcast("mv", { id: it.id, x: Math.round(it.x), y: Math.round(it.y), ...(it.kind === "zone" ? { w: it.w, h: it.h } : {}) });
+}
+
+function showTeamNotice(p) {
+  const d = allDocs().find(x => x.id === p.docId);
+  const box = $("#toasts"); if (!box) return;
+  SND.play?.("ding");
+  const el = document.createElement("div");
+  el.className = "toast info team-show";
+  el.innerHTML = `<div class="ts-head">📣 <b>${esc(p.name || prof(p.uid).name)}</b> pokazuje fragment${d ? ` z <b>dok. ${esc(d.no || "")}</b>` : ""}:</div>
+    <blockquote>„${esc(String(p.text || "").slice(0, 220))}${String(p.text || "").length > 220 ? "…" : ""}”</blockquote>
+    <div class="row end"><button class="btn tiny ghost" data-x>Zamknij</button>${d ? `<button class="btn tiny primary" data-go>➡ Przejdź</button>` : ""}</div>`;
+  box.appendChild(el);
+  const close = () => { el.classList.add("hide"); setTimeout(() => el.remove(), 400); };
+  $("[data-x]", el).addEventListener("click", close);
+  $("[data-go]", el)?.addEventListener("click", () => { close(); goToQuote(p.docId, p.text); });
+  setTimeout(close, 25000);
+}
+function goToQuote(docId, text) {
+  if (!R) return;
+  if (!isSplit() && R.tab !== "akta") { R.docId = docId; sessionStorage.setItem(`doc:${R.room.id}`, docId); switchTab("akta"); }
+  else openDoc(docId);
+  setTimeout(() => flashQuote($(".viewer .doc-body"), text), 120);
+}
+// Mignięcie fragmentu w dokumencie (bez zapisu) i przewinięcie do niego
+function flashQuote(root, quote) {
+  const target = String(quote || "").replace(/\s+/g, "");
+  if (!root || target.length < 2) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const map = []; let flat = ""; let n;
+  while ((n = walker.nextNode())) { const t = n.nodeValue; for (let i = 0; i < t.length; i++) if (!/\s/.test(t[i])) { flat += t[i]; map.push([n, i]); } }
+  const idx = flat.indexOf(target);
+  if (idx < 0) { toast("Nie znalazłem tego fragmentu w dokumencie.", "info"); return; }
+  const segs = new Map();
+  for (let k = idx; k < idx + target.length; k++) { const [node, off] = map[k]; const sg = segs.get(node); if (!sg) segs.set(node, [off, off + 1]); else sg[1] = off + 1; }
+  const marks = [];
+  [...segs.entries()].reverse().forEach(([node, [a, b]]) => {
+    const r = document.createRange(); r.setStart(node, a); r.setEnd(node, b);
+    const m = document.createElement("mark"); m.className = "flash";
+    try { r.surroundContents(m); marks.push(m); } catch { /* ignore */ }
+  });
+  marks[marks.length - 1]?.scrollIntoView({ block: "center", behavior: "smooth" });
+  setTimeout(() => marks.forEach(m => { const p = m.parentNode; if (!p) return; while (m.firstChild) p.insertBefore(m.firstChild, m); m.remove(); p.normalize(); }), 4500);
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  Typowanie podejrzanego                                             */
+/* ------------------------------------------------------------------ */
+function suspectOptions() {
+  const people = casePeople(R.caseData);
+  const sus = people.filter(p => /podejrzan/i.test(p.role || ""));
+  if (sus.length) return sus.map(p => ({ id: p.id, name: p.name, person: p.id, note: p.note }));
+  const qq = (R.caseData.questions || []).find(x => x.type === "choice" && (x.id === "who" || /kto/i.test(plain(x.label || ""))));
+  if (qq) return (qq.options || []).map(o => ({ id: "opt:" + o.id, name: plain(o.label) }));
+  return people.filter(p => !/ofiar|polic|komis|prowadz|biegł/i.test(p.role || "")).map(p => ({ id: p.id, name: p.name, person: p.id, note: p.note }));
+}
+function suspectPanelHtml() {
+  const opts = suspectOptions();
+  if (!opts.length) return "";
+  const votes = {}; R.suspects.forEach((sid, uid) => { (votes[sid] = votes[sid] || []).push(uid); });
+  const total = R.suspects.size, mine = R.suspects.get(me.id), maxN = Math.max(0, ...Object.values(votes).map(v => v.length));
+  return `<div class="suspects-box"><div class="row between"><h3>🕵️ Kogo podejrzewacie?</h3><span class="small">${total ? `${total} ${plural(total, "typ", "typy", "typów")}` : "brak typów"}</span></div>
+    <p class="small">Kliknij osobę, którą podejrzewasz — drużyna widzi rozkład głosów na żywo. Możesz zmieniać zdanie; to nie wpływa na wynik.</p>
+    <div class="suspects">${opts.map(o => { const v = votes[o.id] || [];
+      return `<button type="button" class="suspect ${mine === o.id ? "mine" : ""} ${v.length && v.length === maxN ? "lead" : ""}" data-suspect="${esc(o.id)}" title="${mine === o.id ? "Kliknij, aby cofnąć swój typ" : "Podejrzewam tę osobę"}">
+        ${o.person ? faceImg(o.person, "s-face") : `<span class="s-face s-none">?</span>`}
+        <span class="s-name">${esc(o.name)}</span>
+        <span class="s-bar"><i style="width:${total ? Math.round(v.length * 100 / total) : 0}%"></i></span>
+        <span class="s-votes">${v.map(u => avatarHtml(prof(u), 18)).join("")}<b>${v.length}</b></span></button>`; }).join("")}</div></div>`;
+}
+function renderSuspects() {
+  $$(".suspects-slot").forEach(el => { el.innerHTML = suspectPanelHtml(); });
+}
+async function setSuspect(id) {
+  if (!R) return;
+  const mine = R.suspects.get(me.id);
+  try {
+    if (mine === id) { await q(sb.from("room_suspects").delete().eq("room_id", R.room.id).eq("user_id", me.id)); R.suspects.delete(me.id); }
+    else { await q(sb.from("room_suspects").upsert({ room_id: R.room.id, user_id: me.id, suspect: id, updated_at: new Date().toISOString() }, { onConflict: "room_id,user_id" })); R.suspects.set(me.id, id); }
+    renderSuspects(); ping("suspects"); SND.play?.("click");
+  } catch (e) { toast(errMsg(e).includes("room_suspects") ? "Uruchom ponownie schema.sql w Supabase (brak tabeli typów)." : errMsg(e), "error", 6000); }
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-suspect]"); if (b && R) { e.preventDefault(); setSuspect(b.dataset.suspect); } });
+
 /* ------------------------------------------------------------------ */
 /*  Zakreślacz                                                         */
 /* ------------------------------------------------------------------ */
@@ -3213,7 +3649,7 @@ function checkSelection() {
   const tooLong = text.length > 600;
   selState = { kind: "sel", text: text.slice(0, 600), docId: R.docId };
   showSelBar(`<span class="small">${tooLong ? "Za długi fragment (max 600 znaków)" : "Zaznaczony fragment:"}</span>
-    ${tooLong ? "" : `<button data-sel="hl">🖍 Zakreśl</button><button data-sel="pin">📌 Na tablicę</button><button data-sel="tl">🕒 Na oś czasu</button>`}
+    ${tooLong ? "" : `<button data-sel="hl">🖍 Zakreśl</button><button data-sel="show">📣 Pokaż drużynie</button><button data-sel="pin">📌 Na tablicę</button><button data-sel="tl">🕒 Na oś czasu</button><button data-sel="report" title="Zgłoś błąd w tym fragmencie">⚠️</button>`}
     <button data-sel="x" title="Zamknij">✕</button>`);
 }
 function showMarkBar(id) {
@@ -3221,7 +3657,7 @@ function showMarkBar(id) {
   if (!h) return;
   selState = { kind: "mark", id, text: h.quote, docId: h.doc_id };
   showSelBar(`<span class="small">🖍 ${esc(prof(h.created_by).name)}</span>
-    <button data-sel="pin">📌 Na tablicę</button><button data-sel="tl">🕒 Na oś czasu</button><button data-sel="del">🗑 Usuń</button><button data-sel="x" title="Zamknij">✕</button>`);
+    <button data-sel="show">📣 Pokaż drużynie</button><button data-sel="pin">📌 Na tablicę</button><button data-sel="tl">🕒 Na oś czasu</button><button data-sel="del">🗑 Usuń</button><button data-sel="x" title="Zamknij">✕</button>`);
 }
 function showSelBar(html) { const bar = $("#selbar"); if (!bar) return; bar.innerHTML = html; bar.hidden = false; }
 function hideSelBar() {
@@ -3252,6 +3688,17 @@ async function selAction(a) {
       hideSelBar();
       if (isSplit()) sessionStorage.setItem(`rtab:${R.room.id}`, "os");
       switchTab("os");
+      return;
+    } else if (a === "show") {
+      if (!R.members.size || Object.keys(R.presence).filter(k => k !== me.id).length === 0) toast("📣 Wysłano — ale nikogo innego teraz nie ma w pokoju.", "info");
+      else toast("📣 Pokazano drużynie.", "ok", 2000);
+      bcast("show", { docId: st.docId, text: st.text.slice(0, 400) });
+      flashQuote($(".viewer .doc-body"), st.text);
+      window.getSelection()?.removeAllRanges();
+    } else if (a === "report") {
+      const d = allDocs().find(x => x.id === st.docId);
+      hideSelBar(); window.getSelection()?.removeAllRanges();
+      reportModal(d, st.text);
       return;
     } else if (a === "del") {
       if (!await confirmBox("Usunąć to zakreślenie?", "Usuń")) return hideSelBar();
@@ -3334,7 +3781,10 @@ function renderHelp() {
           <div><h3>🖍 Zakreślacz</h3><p>Zaznacz fragment tekstu w dokumencie (myszką albo przytrzymując palec) — pojawi się pasek: <b>Zakreśl</b>, <b>Na tablicę</b> (jako cytat) albo <b>Na oś czasu</b>. Zakreślenia widzi cała drużyna, każdy gracz ma swój kolor.</p></div>
           <div><h3>🕒 Oś czasu</h3><p>Wspólna lista wydarzeń, która sama układa się według dnia i godziny. Dodawajcie fakty z dokumentów i szukajcie dziur w alibi — to najważniejsze narzędzie śledczego.</p></div>
           <div><h3>📨 Wiadomości</h3><p>W trakcie śledztwa przychodzą wiadomości od przełożonych — po złożeniu wniosku albo po upływie czasu. Często z nowymi dokumentami i zwrotami akcji.</p></div>
-          <div><h3>🧵 Tablica</h3><p>Przypinajcie dokumenty przyciskiem 📌, dodawajcie karteczki z tropami i łączcie je czerwoną nitką (<b>Połącz nitką</b> → kliknij dwa elementy). Elementy można przeciągać, kliknięcie nitki ją usuwa.</p></div>
+          <div><h3>🧵 Tablica</h3><p>Przypinajcie dokumenty 📌, zdjęcia osób (z <b>Kartoteki</b>) i karteczki z tropami, łączcie je nitką (<b>Połącz nitką</b> → kliknij dwa elementy). Kliknięcie nitki pozwala ją <b>podpisać</b> („kłamie”, „alibi”…) i zmienić kolor. <b>▭ Strefa</b> to ramka, np. „Podejrzani” / „Wykluczeni” — przesuwasz ją za pasek razem z zawartością. Kółko myszy przybliża, przeciągnięcie tła przesuwa. Widać kursory innych graczy.</p></div>
+          <div><h3>📣 Pokaż drużynie</h3><p>Zaznacz fragment dokumentu i kliknij <b>📣 Pokaż drużynie</b> — reszta dostanie powiadomienie i jednym kliknięciem przeskoczy do podświetlonego fragmentu.</p></div>
+          <div><h3>🕵️ Typowanie</h3><p>W <b>Kartotece osób</b> i w zakładce <b>Rozwiązanie</b> każdy zaznacza, kogo podejrzewa. Drużyna widzi rozkład głosów na żywo — typ można zmieniać, nie wpływa na wynik.</p></div>
+          <div><h3>⚠️ Błąd w sprawie?</h3><p>Przycisk <b>⚠️ Zgłoś błąd</b> pod dokumentem (albo ⚠️ przy zaznaczonym fragmencie) wysyła zgłoszenie do admina.</p></div>
           <div><h3>🗒 Notatki</h3><p>Wspólny notatnik całej drużyny — idealny na oś czasu i listę alibi. Obok lista graczy i dziennik śledztwa (kto co odblokował, kto wziął podpowiedź).</p></div>
           <div><h3>⚖️ Rozwiązanie</h3><p>Wszyscy edytujecie <b>jedną wspólną odpowiedź</b>: kto, czym, dlaczego i jak sprawca zatarł ślady. Gdy każdy kliknie <b>✅ Zgadzam się</b>, odpowiedź idzie automatycznie. Zmiana odpowiedzi zeruje głosy. Potem wszyscy widzą wynik, rozwiązanie i ranking.</p></div>
           <div><h3>💡 Porady</h3><p>Rozpiszcie oś czasu minuta po minucie. Sprawdzajcie alibi każdego podejrzanego na <i>prawdziwy</i> czas zbrodni. Nie ufajcie niczemu, co mogło zostać ustawione — zegarom, zeznaniom bliskich. Szukajcie sprzeczności między dokumentami.</p></div>

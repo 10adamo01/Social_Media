@@ -554,6 +554,17 @@ mark.hl-c3 { background: rgba(120, 230, 120, .5); }
 .ed-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 .ed-errs { max-height: 50vh; overflow: auto; color: #ffb4ad; font-size: .88rem; }
 
+/* muzyka */
+.music-dock { position: fixed; right: 14px; bottom: 14px; z-index: 120; width: 240px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); overflow: hidden; }
+.music-dock.left { right: auto; left: 14px; }
+.md-bar { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; font-size: .8rem; font-weight: 600; }
+.md-btns { display: flex; gap: 2px; }
+.md-btns button { font: inherit; background: none; border: none; color: var(--text); cursor: pointer; padding: 2px 6px; border-radius: 5px; }
+.md-btns button:hover { background: var(--bg2); }
+.md-player { width: 240px; height: 200px; background: #000; }
+.md-player iframe, .md-player > div { width: 100%; height: 100%; display: block; border: 0; }
+.modal hr { border: none; border-top: 1px solid var(--line); margin: 12px 0; }
+
 /* telefon */
 @media (max-width: 860px) {
   .lobby-grid { grid-template-columns: minmax(0,1fr); padding: 12px; }
@@ -589,4 +600,6 @@ mark.hl-c3 { background: rgba(120, 230, 120, .5); }
   .tl-day { margin-left: 66px; }
   .timer { font-size: .78rem; padding: 2px 8px; }
   .selbar { bottom: 10px; }
+  .music-dock { bottom: 10px; right: 10px; }
+  .music-dock.left { left: 10px; }
 }

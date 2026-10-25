@@ -386,19 +386,115 @@ const SND = (() => {
     setVol(v) { st.vol = v; save(); if (master) master.gain.value = v; },
   };
 })();
-function soundButton() { return `<button class="btn tiny ghost ${SND.state.fx || SND.state.amb ? "" : "muted"}" id="soundBtn" title="Dźwięk">${SND.state.fx || SND.state.amb ? "🔊" : "🔇"}</button>`; }
+/* ---- muzyka w tle (oficjalny odtwarzacz YouTube, widoczny w rogu ekranu) ---- */
+const MUSIC = (() => {
+  const DEF_URL = CFG.MUSIC_YT || "";
+  const st = (() => { try { return { on: false, vol: 35, url: "", ...JSON.parse(localStorage.getItem("music") || "{}") }; } catch { return { on: false, vol: 35, url: "" }; } })();
+  const save = () => { try { localStorage.setItem("music", JSON.stringify(st)); } catch { /* ignore */ } };
+  let player = null, apiPromise = null, dock = null, wantPlay = false;
+  function idFrom(url) {
+    const u = String(url || "").trim();
+    let m = u.match(/[?&]v=([A-Za-z0-9_-]{11})/) || u.match(/youtu\.be\/([A-Za-z0-9_-]{11})/) || u.match(/\/(?:embed|shorts|live)\/([A-Za-z0-9_-]{11})/);
+    if (m) return m[1];
+    return /^[A-Za-z0-9_-]{11}$/.test(u) ? u : null;
+  }
+  const currentUrl = () => st.url || DEF_URL;
+  function loadApi() {
+    if (window.YT?.Player) return Promise.resolve();
+    if (apiPromise) return apiPromise;
+    apiPromise = new Promise((res, rej) => {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { prev?.(); res(); };
+      const sc = document.createElement("script");
+      sc.src = "https://www.youtube.com/iframe_api"; sc.async = true; sc.onerror = () => { apiPromise = null; rej(new Error("Nie udało się wczytać odtwarzacza YouTube.")); };
+      document.head.appendChild(sc);
+    });
+    return apiPromise;
+  }
+  function ensureDock() {
+    if (dock) return dock;
+    dock = document.createElement("div");
+    dock.className = `music-dock ${st.side === "left" ? "left" : ""}`;
+    dock.innerHTML = `<div class="md-bar"><span>🎵 Muzyka</span><span class="md-btns">
+        <button type="button" data-m="side" title="Przenieś na drugą stronę">⇆</button>
+        <button type="button" data-m="pause" title="Pauza / odtwarzaj">⏯</button>
+        <button type="button" data-m="off" title="Wyłącz muzykę">✕</button></span></div>
+      <div class="md-player"><div id="ytMusic"></div></div>`;
+    document.body.appendChild(dock);
+    dock.addEventListener("click", e => {
+      const b = e.target.closest("[data-m]"); if (!b) return;
+      if (b.dataset.m === "off") setOn(false);
+      else if (b.dataset.m === "side") { st.side = st.side === "left" ? "right" : "left"; save(); dock.classList.toggle("left", st.side === "left"); }
+      else if (player?.getPlayerState) { player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); }
+    });
+    return dock;
+  }
+  async function start() {
+    const id = idFrom(currentUrl());
+    if (!id) { toast("Brak poprawnego linku do YouTube w ustawieniach muzyki.", "error"); st.on = false; save(); return; }
+    ensureDock();
+    try { await loadApi(); } catch (e) { toast(errMsg(e), "error"); return; }
+    if (player) { player.loadVideoById(id); player.setVolume(st.vol); return; }
+    wantPlay = true;
+    player = new window.YT.Player("ytMusic", {
+      width: "100%", height: "100%", videoId: id,
+      playerVars: { autoplay: 1, loop: 1, playlist: id, playsinline: 1, rel: 0, modestbranding: 1 },
+      events: {
+        onReady: ev => { ev.target.setVolume(st.vol); if (wantPlay) ev.target.playVideo(); },
+        onError: () => toast("Tego filmu nie da się odtworzyć poza YouTube (autor zablokował osadzanie). Wybierz inny link w ustawieniach dźwięku.", "error", 8000),
+      },
+    });
+  }
+  function stop() {
+    wantPlay = false;
+    try { player?.destroy(); } catch { /* ignore */ }
+    player = null; dock?.remove(); dock = null;
+  }
+  function setOn(v) { st.on = v; save(); v ? start() : stop(); const b = $("#soundBtn"); if (b) b.textContent = soundIcon(); }
+  // przeglądarki wymagają kliknięcia przed odtworzeniem dźwięku
+  document.addEventListener("pointerdown", () => {
+    if (st.on && !player) start();
+    else if (st.on && player?.getPlayerState && player.getPlayerState() !== 1 && wantPlay) { try { player.playVideo(); } catch { /* ignore */ } wantPlay = false; }
+  }, { once: false });
+  return {
+    state: st, defaultUrl: DEF_URL, idFrom, currentUrl,
+    setOn,
+    setVol(v) { st.vol = v; save(); try { player?.setVolume(v); } catch { /* ignore */ } },
+    setUrl(u) { st.url = u; save(); if (st.on) start(); },
+    boot() { if (st.on) start(); },
+  };
+})();
+function soundIcon() { return SND.state.fx || SND.state.amb || MUSIC.state.on ? "🔊" : "🔇"; }
+function soundButton() { return `<button class="btn tiny ghost ${soundIcon() === "🔇" ? "muted" : ""}" id="soundBtn" title="Dźwięk i muzyka">${soundIcon()}</button>`; }
 function bindSoundButton() {
   $("#soundBtn")?.addEventListener("click", () => {
     const w = showModal("🔊 Dźwięk", `
       <label class="sw"><input type="checkbox" id="sFx" ${SND.state.fx ? "checked" : ""}> Efekty (maszyna do pisania, pieczątka, powiadomienia)</label>
       <label class="sw"><input type="checkbox" id="sAmb" ${SND.state.amb ? "checked" : ""}> Klimat w tle (deszcz i niski szum)</label>
-      <label class="sw col">Głośność <input type="range" id="sVol" min="0" max="1" step="0.05" value="${SND.state.vol}"></label>
-      <div class="row end"><button class="btn ghost" id="sTest">▶ Test</button><button class="btn primary" data-close>Gotowe</button></div>`);
+      <label class="sw col">Głośność efektów i klimatu <input type="range" id="sVol" min="0" max="1" step="0.05" value="${SND.state.vol}"></label>
+      <hr>
+      <label class="sw"><input type="checkbox" id="mOn" ${MUSIC.state.on ? "checked" : ""}> 🎵 Muzyka w tle (YouTube)</label>
+      <label class="sw col">Głośność muzyki <input type="range" id="mVol" min="0" max="100" step="5" value="${MUSIC.state.vol}"></label>
+      <label class="sw col">Link do utworu lub playlisty z YouTube
+        <span class="row"><input id="mUrl" placeholder="https://www.youtube.com/watch?v=…" value="${esc(MUSIC.state.url || MUSIC.defaultUrl)}">
+        <button type="button" class="btn tiny" id="mSet">Ustaw</button></span></label>
+      <p class="small">Muzyka gra z oficjalnego odtwarzacza YouTube — mały odtwarzacz pojawi się w rogu ekranu (⇆ przenosi go na drugą stronę, ✕ wyłącza). Ustawienie dotyczy tylko Twojej przeglądarki. ${MUSIC.state.url ? `<a href="#" id="mReset">Przywróć domyślny utwór</a>` : ""}</p>
+      <div class="row end"><button class="btn ghost" id="sTest">▶ Test efektów</button><button class="btn primary" data-close>Gotowe</button></div>`);
+    $("#mOn", w).addEventListener("change", e => MUSIC.setOn(e.target.checked));
+    $("#mVol", w).addEventListener("input", e => MUSIC.setVol(+e.target.value));
+    $("#mSet", w).addEventListener("click", () => {
+      const u = $("#mUrl", w).value.trim();
+      if (!MUSIC.idFrom(u)) { toast("To nie wygląda na link do filmu z YouTube.", "error"); return; }
+      MUSIC.setUrl(u === MUSIC.defaultUrl ? "" : u);
+      if (!MUSIC.state.on) { MUSIC.setOn(true); $("#mOn", w).checked = true; }
+      toast("🎵 Ustawiono muzykę.", "ok");
+    });
+    $("#mReset", w)?.addEventListener("click", e => { e.preventDefault(); MUSIC.setUrl(""); $("#mUrl", w).value = MUSIC.defaultUrl; });
     $("#sFx", w).addEventListener("change", e => SND.setFx(e.target.checked));
     $("#sAmb", w).addEventListener("change", e => SND.setAmb(e.target.checked));
     $("#sVol", w).addEventListener("input", e => SND.setVol(+e.target.value));
     $("#sTest", w).addEventListener("click", () => { const f = SND.state.fx; SND.state.fx = true; SND.play("type"); SND.state.fx = f; });
-    w.addEventListener("click", e => { if (e.target.closest("[data-close]") || e.target === w) { const b = $("#soundBtn"); if (b) b.textContent = SND.state.fx || SND.state.amb ? "🔊" : "🔇"; } });
+    w.addEventListener("click", e => { if (e.target.closest("[data-close]") || e.target === w) { const b = $("#soundBtn"); if (b) b.textContent = soundIcon(); } });
   });
 }
 
@@ -2456,6 +2552,7 @@ function renderHelp() {
 
 /* ------------------------------------------------------------------ */
 window.addEventListener("error", e => console.error(e.error || e.message));
+MUSIC.boot();
 window.__detektyw = { renderBlocks, validateCase, splitCase, mergeCase, renderPreview, buildPrompt };
 window.BS = {
   sb, $, $$, esc, inline, plain, toast, confirmBox, showModal, q, errMsg, debounce,

@@ -10,6 +10,9 @@ window.CONFIG = {
   // Nazwa wyświetlana w nagłówku strony
   SITE_NAME: "Biuro Śledcze",
 
+  // Domyślna muzyka w tle (link do YouTube) — gracze włączają ją w ustawieniach dźwięku 🔊
+  MUSIC_YT: "https://www.youtube.com/watch?v=HmERMVVJlOQ",
+
   // Link powrotny do strony głównej
   HOME_URL: "../",
   HOME_LABEL: "zawlox.pl",

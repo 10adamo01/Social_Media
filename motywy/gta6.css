@@ -1,0 +1,116 @@
+/* =====================================================================
+   MOTYW: GTA 6 · Vice City
+   Neonowy zachód słońca – róż, pomarańcz, turkus. Własna stylistyka,
+   bez logo i grafik z gry.
+   Wszystko jest ograniczone do html[data-motyw="gta6"], więc ten plik
+   nie zmienia niczego, gdy włączony jest inny motyw.
+   ===================================================================== */
+
+/* ---------- 1. kolory (te same zmienne co w szablonie) ---------- */
+html[data-motyw="gta6"] {
+    --bg: #12081f;
+    --surface: #1d1133;
+    --surface-2: #281844;
+    --line: #47306f;
+    --text: #fff3fb;
+    --muted: #d5bfe6;
+    --dim: #9a83b8;
+    --silver: linear-gradient(135deg, #ffd166 0%, #ff8a3d 28%, #ff2e88 58%, #a855f7 82%, #22d3ee 100%);
+    --steel: linear-gradient(160deg, #7a44b8 0%, #42276f 50%, #261641 100%);
+    --gold: #ffd166;
+    --sunset: linear-gradient(90deg, #ff2e88 0%, #ff8a3d 100%);
+    --sunset-text: linear-gradient(180deg, #fff1a8 0%, #ffd166 22%, #ff8a3d 52%, #ff2e88 80%, #c026d3 100%);
+}
+
+/* ---------- 2. tło: niebo o zmierzchu, słońce i siatka horyzontu ---------- */
+html[data-motyw="gta6"] body {
+    background: linear-gradient(180deg, #0b0518 0%, #160a2b 35%, #2a0d3d 70%, #44123f 100%) fixed;
+}
+html[data-motyw="gta6"] .bg-glow {
+    background:
+        radial-gradient(ellipse 70% 45% at 50% 108%, rgba(255, 138, 61, 0.35), transparent 70%),
+        radial-gradient(ellipse 55% 40% at 15% 0%, rgba(255, 46, 136, 0.22), transparent 70%),
+        radial-gradient(ellipse 45% 35% at 90% 5%, rgba(34, 211, 238, 0.16), transparent 70%);
+}
+/* słońce w paski przy dolnej krawędzi */
+html[data-motyw="gta6"] .bg-glow::after {
+    content: '';
+    position: absolute; left: 50%; bottom: -38vmin;
+    width: 62vmin; height: 62vmin; transform: translateX(-50%);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #fff3b0 0%, #ffc15e 30%, #ff7a59 58%, #ff2e88 82%, #c0157f 100%);
+    box-shadow: 0 0 120px rgba(255, 46, 136, 0.35);
+    opacity: 0.55;
+    -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 14px, transparent 14px 20px);
+    mask-image: repeating-linear-gradient(180deg, #000 0 14px, transparent 14px 20px);
+    filter: blur(0.5px);
+}
+/* siatka jak horyzont w stylu retro */
+html[data-motyw="gta6"] .bg-grid {
+    background-image:
+        linear-gradient(rgba(255, 46, 136, 0.16) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 211, 238, 0.10) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 55%, #000 100%);
+    mask-image: linear-gradient(180deg, transparent 55%, #000 100%);
+}
+
+/* ---------- 3. napisy ---------- */
+html[data-motyw="gta6"] .mega .ch > span,
+html[data-motyw="gta6"] h1 {
+    background: var(--sunset-text);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+html[data-motyw="gta6"] .mega {
+    filter: drop-shadow(0 6px 30px rgba(255, 46, 136, 0.35));
+}
+html[data-motyw="gta6"] .plate-title,
+html[data-motyw="gta6"] .panel-title {
+    text-shadow: 0 0 18px rgba(255, 46, 136, 0.45);
+}
+html[data-motyw="gta6"] .kicker { color: #22d3ee; }
+
+/* ---------- 4. ramki i panele: lekko przezroczyste, neonowe ---------- */
+html[data-motyw="gta6"] .hud > .hud-in {
+    background: linear-gradient(180deg, rgba(40, 24, 72, 0.94) 0%, rgba(24, 13, 46, 0.94) 100%);
+}
+html[data-motyw="gta6"] .hud.is-silver {
+    filter: drop-shadow(0 0 14px rgba(255, 46, 136, 0.28));
+}
+html[data-motyw="gta6"] .plate-icon {
+    background: var(--sunset);
+    color: #fff;
+}
+
+/* ---------- 5. przyciski ---------- */
+html[data-motyw="gta6"] .btn-primary {
+    background: var(--sunset);
+    color: #fff;
+    box-shadow: 0 0 22px rgba(255, 46, 136, 0.35);
+}
+html[data-motyw="gta6"] .btn-primary:hover {
+    background: linear-gradient(90deg, #ff4f9e 0%, #ffa45c 100%);
+}
+html[data-motyw="gta6"] .btn-ghost {
+    background: rgba(40, 24, 72, 0.8);
+    box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.35);
+}
+
+/* plansza minigierek */
+html[data-motyw="gta6"] .stage {
+    background:
+        radial-gradient(ellipse at 50% 120%, rgba(255, 46, 136, 0.28), transparent 60%),
+        linear-gradient(rgba(34, 211, 238, 0.06) 1px, transparent 1px) 0 0 / 40px 40px,
+        linear-gradient(90deg, rgba(34, 211, 238, 0.06) 1px, transparent 1px) 0 0 / 40px 40px,
+        #150a28;
+}
+
+html[data-motyw="gta6"] .overlay { background: rgba(21, 10, 40, 0.86); }
+
+/* ---------- 6. drobne akcenty ---------- */
+html[data-motyw="gta6"] ::selection { background: #ff2e88; color: #fff; }
+html[data-motyw="gta6"] .topnav.is-scrolled { background: rgba(18, 8, 31, 0.82); }
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-motyw="gta6"] .bg-glow::after { display: none; }
+}

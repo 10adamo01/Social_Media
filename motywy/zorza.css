@@ -1,0 +1,66 @@
+/* =====================================================================
+   MOTYW: Zorza polarna
+   Granatowa noc i powoli falująca zorza w turkusie i fiolecie.
+   ===================================================================== */
+
+/* ---------- 1. kolory ---------- */
+html[data-motyw="zorza"] {
+    --bg: #050b18;
+    --surface: #0b1529;
+    --surface-2: #111e38;
+    --line: #22365c;
+    --text: #eef8ff;
+    --muted: #a9c4df;
+    --dim: #6683a3;
+    --silver: linear-gradient(140deg, #f0fdff 0%, #99f6e4 25%, #5eead4 45%, #818cf8 70%, #c084fc 100%);
+    --steel: linear-gradient(160deg, #2b4a73 0%, #1a2f52 50%, #0f1d38 100%);
+    --gold: #fde68a;
+}
+
+/* ---------- 2. tło: gwiazdy i ruchoma zorza ---------- */
+html[data-motyw="zorza"] body { background: linear-gradient(180deg, #030713 0%, #071229 60%, #0a1a33 100%) fixed; }
+html[data-motyw="zorza"] .bg-glow {
+    background:
+        radial-gradient(ellipse 45% 30% at 25% 10%, rgba(94, 234, 212, 0.30), transparent 70%),
+        radial-gradient(ellipse 40% 28% at 60% 4%, rgba(129, 140, 248, 0.28), transparent 70%),
+        radial-gradient(ellipse 35% 25% at 85% 14%, rgba(192, 132, 252, 0.22), transparent 70%);
+    filter: blur(8px);
+    animation: zorza-fala 18s ease-in-out infinite alternate;
+}
+@keyframes zorza-fala {
+    0%   { transform: translateX(-4%) skewX(-6deg); opacity: 0.85; }
+    50%  { transform: translateX(3%) skewX(4deg); opacity: 1; }
+    100% { transform: translateX(-2%) skewX(-2deg); opacity: 0.9; }
+}
+html[data-motyw="zorza"] .bg-grid {
+    background-image:
+        radial-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1.4px),
+        radial-gradient(rgba(186, 230, 253, 0.35) 1px, transparent 1.4px);
+    background-size: 120px 120px, 77px 77px;
+    background-position: 0 0, 40px 60px;
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 75%);
+    mask-image: linear-gradient(180deg, #000 0%, transparent 75%);
+}
+
+/* ---------- 3. napisy ---------- */
+html[data-motyw="zorza"] .mega .ch > span,
+html[data-motyw="zorza"] h1 {
+    background: linear-gradient(180deg, #ffffff 0%, #ccfbf1 35%, #5eead4 65%, #818cf8 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+html[data-motyw="zorza"] .mega { filter: drop-shadow(0 6px 28px rgba(94, 234, 212, 0.35)); }
+html[data-motyw="zorza"] .kicker { color: #99f6e4; }
+
+/* ---------- 4. panele i przyciski ---------- */
+html[data-motyw="zorza"] .hud > .hud-in { background: linear-gradient(180deg, rgba(17, 30, 56, 0.94) 0%, rgba(9, 18, 36, 0.94) 100%); }
+html[data-motyw="zorza"] .hud.is-silver { filter: drop-shadow(0 0 12px rgba(94, 234, 212, 0.25)); }
+html[data-motyw="zorza"] .plate-icon { background: linear-gradient(135deg, #5eead4, #818cf8); color: #04121f; }
+html[data-motyw="zorza"] .btn-primary { background: linear-gradient(90deg, #2dd4bf 0%, #818cf8 100%); color: #04121f; }
+html[data-motyw="zorza"] .btn-primary:hover { background: linear-gradient(90deg, #5eead4 0%, #a5b4fc 100%); }
+html[data-motyw="zorza"] .stage { background: radial-gradient(ellipse at 50% -20%, rgba(94, 234, 212, 0.18), transparent 60%), #08142a; }
+html[data-motyw="zorza"] .overlay { background: rgba(6, 14, 30, 0.86); }
+html[data-motyw="zorza"] ::selection { background: #5eead4; color: #04121f; }
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-motyw="zorza"] .bg-glow { animation: none; }
+}

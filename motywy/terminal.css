@@ -1,0 +1,63 @@
+/* =====================================================================
+   MOTYW: Terminal
+   Zielony ekran hakera – czerń, neonowa zieleń i linie jak w starym monitorze.
+   ===================================================================== */
+
+/* ---------- 1. kolory ---------- */
+html[data-motyw="terminal"] {
+    --bg: #040905;
+    --surface: #0a140c;
+    --surface-2: #0f1d12;
+    --line: #1d3a24;
+    --text: #d9ffe2;
+    --muted: #8fd6a2;
+    --dim: #4f7d5b;
+    --silver: linear-gradient(160deg, #b6ffc8 0%, #4ade80 30%, #16a34a 60%, #0b4d22 85%, #062612 100%);
+    --steel: linear-gradient(160deg, #1f5c32 0%, #123a1f 50%, #0a2313 100%);
+    --gold: #a3e635;
+}
+
+/* ---------- 2. tło: poświata i linie ekranu ---------- */
+html[data-motyw="terminal"] body { background: #040905; }
+html[data-motyw="terminal"] .bg-glow {
+    background:
+        radial-gradient(ellipse 70% 50% at 50% 0%, rgba(34, 197, 94, 0.20), transparent 70%),
+        radial-gradient(ellipse 60% 40% at 50% 100%, rgba(34, 197, 94, 0.10), transparent 70%);
+}
+html[data-motyw="terminal"] .bg-grid {
+    background-image: repeating-linear-gradient(180deg, rgba(74, 222, 128, 0.06) 0 1px, transparent 1px 4px);
+    background-size: auto;
+    -webkit-mask-image: none; mask-image: none;
+    animation: terminal-scan 8s linear infinite;
+}
+@keyframes terminal-scan { to { background-position: 0 120px; } }
+
+/* ---------- 3. napisy ---------- */
+html[data-motyw="terminal"] .mega .ch > span,
+html[data-motyw="terminal"] h1 {
+    background: linear-gradient(180deg, #ecfff1 0%, #86efac 40%, #22c55e 75%, #15803d 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+html[data-motyw="terminal"] .mega { filter: drop-shadow(0 0 22px rgba(34, 197, 94, 0.45)); }
+html[data-motyw="terminal"] .plate-title,
+html[data-motyw="terminal"] .panel-title,
+html[data-motyw="terminal"] .kicker,
+html[data-motyw="terminal"] .topnav-logo {
+    font-family: ui-monospace, 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+    letter-spacing: 0.02em;
+}
+html[data-motyw="terminal"] .plate-title { text-shadow: 0 0 14px rgba(74, 222, 128, 0.55); }
+html[data-motyw="terminal"] .kicker::before { content: '> '; }
+
+/* ---------- 4. panele i przyciski ---------- */
+html[data-motyw="terminal"] .hud > .hud-in { background: linear-gradient(180deg, #0c180f 0%, #070f09 100%); }
+html[data-motyw="terminal"] .plate-icon { background: #22c55e; color: #03140a; }
+html[data-motyw="terminal"] .btn-primary { background: #22c55e; color: #03140a; box-shadow: 0 0 18px rgba(34, 197, 94, 0.35); }
+html[data-motyw="terminal"] .btn-primary:hover { background: #4ade80; }
+html[data-motyw="terminal"] .stage { background: repeating-linear-gradient(180deg, rgba(74, 222, 128, 0.05) 0 1px, transparent 1px 4px), #050c07; }
+html[data-motyw="terminal"] .overlay { background: rgba(4, 12, 6, 0.88); }
+html[data-motyw="terminal"] ::selection { background: #22c55e; color: #03140a; }
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-motyw="terminal"] .bg-grid { animation: none; }
+}

@@ -36,7 +36,8 @@
             document.documentElement.classList.add('js-reveal');
         }
     </script>
-    <script src="motyw.js?v=20261016b"></script>
+    <script src="motywy/lista.js?v=20261102b"></script>
+    <script src="motyw.js?v=20261102b"></script>
     <style>
         /* =========================================================
            KOLORY I ZMIENNE – styl paneli z Twitcha
@@ -1061,7 +1062,6 @@
                 <a href="#sociale">Sociale</a>
                 <a href="#latest">Najnowsze</a>
                 <a href="#minigierki">Minigierki</a>
-                <a href="detektyw/">Śledztwa</a>
                 <a href="#kontakt">Kontakt</a>
             </div>
             <div id="nav-auth" class="nav-auth" hidden>
@@ -1076,9 +1076,9 @@
                         <p class="nav-menu-who">Zalogowano jako<b id="nav-menu-name"></b><span id="nav-menu-lvl" class="nav-menu-lvl" hidden></span></p>
                         <a href="profil.html">Mój profil</a>
                         <a href="ranking.html">Ranking widzów</a>
+                        <a href="profil.html#motywy">Zmień motyw</a>
                         <a href="#glosowanie" id="nav-menu-poll" hidden>Głosowanie</a>
                         <a href="minigierki.html">Minigierki i rankingi</a>
-                        <a href="detektyw/">Biuro Śledcze</a>
                         <a href="ustawienia.html" id="nav-menu-settings" hidden>Ustawienia</a>
                         <button id="nav-logout" type="button">Wyloguj się</button>
                     </div>
@@ -1404,11 +1404,9 @@
                             </div>
                         </div>
                         <p class="note">Celność, refleks, pamięć i zręczność – każda gra ma własny ranking. Zaloguj się przez Discord i zawalcz o top 5.</p>
-                        <p class="note">Nowość: <b>Biuro Śledcze</b> – drużynowa gra detektywistyczna. Akta, dowody, przesłuchania i wspólne śledztwo ze znajomymi.</p>
                         <a class="btn btn-primary" href="minigierki.html">
                             <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg> Zagraj
                         </a>
-                        <a class="btn btn-ghost" href="detektyw/">🔎 Biuro Śledcze</a>
                     </div>
                     <div class="game-board">
                         <p class="game-board-title">Liderzy</p>
@@ -1472,9 +1470,9 @@
     </div>
 
     <!-- Ustawienia rankingu i lista minigierek (wspólne z grami) -->
-    <script src="config.js?v=20261016b"></script>
-    <script src="gry-lista.js?v=20261016b"></script>
-    <script src="punkty.js?v=20261016b"></script>
+    <script src="config.js?v=20261102b"></script>
+    <script src="gry-lista.js?v=20261102b"></script>
+    <script src="punkty.js?v=20261102b"></script>
     <!-- Biblioteka Supabase: logowanie Discord + głosowanie -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script>
@@ -2995,6 +2993,7 @@
                 if (error || !data) return;
                 const before = total;
                 role = data.role || null;
+                if (window.ZawloxMotyw) window.ZawloxMotyw.setLevel(P.level(Number(data.points) || 0).level, role === 'owner');
                 showTotal(Number(data.points) || 0, before !== null && data.points > before);
                 if (announce && before !== null && data.points > before) showToast(`+${data.points - before} pkt!`);
                 loadBoard();
@@ -3120,7 +3119,7 @@
                 total = null; capped = { stream: false, video: false }; firstAward = true;
                 showTotal(null);
                 renderCta(); renderHeroHint();
-                if (!user) { $('nav-menu-lvl').hidden = true; loadBoard(); return; }
+                if (!user) { $('nav-menu-lvl').hidden = true; if (window.ZawloxMotyw) window.ZawloxMotyw.setLevel(1, false); loadBoard(); return; }
                 const { data: daily } = await sb.rpc('claim_daily');
                 if (daily > 0) showToast(`+${daily} pkt za codzienną wizytę!`);
                 await refreshTotal(false);

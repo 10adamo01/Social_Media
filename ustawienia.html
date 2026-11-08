@@ -10,8 +10,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="gry.css?v=20261016b">
-    <script src="motyw.js?v=20261016b"></script>
+    <link rel="stylesheet" href="gry.css?v=20261102b">
+    <script src="motywy/lista.js?v=20261102b"></script>
+    <script src="motyw.js?v=20261102b"></script>
     <style>
         .settings { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
         .panel .hud-in { padding: 24px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
@@ -135,10 +136,24 @@
         </div>
 
         <div id="settings" class="settings" hidden>
+            <!-- ===================== MOTYW ===================== -->
+            <section class="hud panel wide" aria-labelledby="theme-title">
+                <div class="hud-in">
+                    <h2 id="theme-title" class="panel-title">Motyw strony <small id="theme-state"></small></h2>
+                    <p class="panel-lead">Motyw zmienia wygląd całej strony i minigierek dla wszystkich odwiedzających. Kliknij, żeby zobaczyć podgląd – zmiana trafi do wszystkich dopiero po „Zapisz motyw”. Widzowie z odpowiednią rangą mogą też włączyć sobie motyw w swoim profilu.</p>
+                    <div id="theme-cards"></div>
+                    <div class="actions">
+                        <button id="theme-save" type="button" class="btn btn-primary" disabled>Zapisz motyw</button>
+                    </div>
+                    <p class="note-small" style="margin-top:12px;font-size:12px;color:var(--dim)">Nowe motywy dodajesz w pliku <b>motywy/lista.js</b> (instrukcja jest na górze pliku).</p>
+                </div>
+            </section>
+
             <!-- ===================== KOLOR ===================== -->
             <section class="hud panel" aria-labelledby="color-title">
                 <div class="hud-in">
                     <h2 id="color-title" class="panel-title">Kolor strony</h2>
+                    <p id="color-own" class="warn" hidden style="margin:-4px 0 12px">Wybrany motyw ma własne kolory – ten kolor działa tylko w motywie „Zawlox”.</p>
                     <p class="panel-lead">Kolor akcentu: przyciski, podkreślenia, poświata w tle i cząsteczki. Działa na stronie głównej i w minigierkach. Kliknij, żeby zobaczyć podgląd – zmiana trafi do wszystkich dopiero po „Zapisz”.</p>
 
                     <div id="swatches" class="swatches" role="group" aria-label="Gotowe kolory"></div>
@@ -230,7 +245,7 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <script src="config.js?v=20261016b"></script>
+    <script src="config.js?v=20261102b"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script>
         const $ = (id) => document.getElementById(id);
@@ -344,6 +359,39 @@
             toast('Kolor zapisany – działa już na całej stronie');
         });
         // wyjście bez zapisu nie zostawia podglądu w pamięci przeglądarki (zapis robi tylko "Zapisz")
+
+        // =====================================================================
+        // MOTYW
+        // =====================================================================
+        let themeSaved = 'domyslny', themeCurrent = 'domyslny';
+        function renderThemes() {
+            Motyw.cards($('theme-cards'), { selected: themeCurrent, level: Infinity, onPick: (id) => {
+                themeCurrent = id;
+                Motyw.preview(id);
+                renderThemes();
+            } });
+            $('theme-save').disabled = themeCurrent === themeSaved;
+            const t = Motyw.find(themeSaved);
+            $('theme-state').textContent = 'teraz: ' + (t ? t.nazwa : 'Zawlox');
+            const own = Motyw.find(themeCurrent);
+            $('color-own').hidden = !(own && own.akcent);
+        }
+        async function loadTheme() {
+            const { data, error } = await sb.from('site_settings').select('theme').eq('id', 1).maybeSingle();
+            if (error) { $('theme-state').textContent = 'uruchom supabase-motywy.sql'; $('theme-save').hidden = true; }
+            themeSaved = themeCurrent = (data && Motyw.find(data.theme)) ? data.theme : 'domyslny';
+            Motyw.preview(themeCurrent);
+            renderThemes();
+        }
+        $('theme-save').addEventListener('click', async () => {
+            const b = $('theme-save'); b.disabled = true;
+            const { data, error } = await sb.from('site_settings').update({ theme: themeCurrent, updated_at: new Date().toISOString() }).eq('id', 1).select();
+            if (error || !data || !data.length) { toast('Nie udało się zapisać motywu', true); b.disabled = false; return; }
+            themeSaved = themeCurrent;
+            Motyw.setSite(themeSaved);
+            renderThemes();
+            toast('Motyw zapisany – działa już na całej stronie');
+        });
 
         async function loadColor() {
             const { data } = await sb.from('site_settings').select('accent').eq('id', 1).maybeSingle();
@@ -517,7 +565,7 @@
             }
             $('gate').hidden = true;
             $('settings').hidden = false;
-            await Promise.all([loadColor(), loadPeople(), loadDiscord()]);
+            await Promise.all([loadTheme(), loadColor(), loadPeople(), loadDiscord()]);
         }
 
         if (!sb) {

@@ -1,0 +1,65 @@
+/* =====================================================================
+   MOTYW: Inferno
+   Lawa i ogień – ciemna czerwień, żar od dołu i unoszące się iskry.
+   ===================================================================== */
+
+/* ---------- 1. kolory ---------- */
+html[data-motyw="inferno"] {
+    --bg: #0d0503;
+    --surface: #1a0a06;
+    --surface-2: #241009;
+    --line: #4a1d10;
+    --text: #fff1e6;
+    --muted: #e6b9a0;
+    --dim: #9a6a55;
+    --silver: linear-gradient(160deg, #fff3c4 0%, #fbbf24 22%, #f97316 48%, #dc2626 75%, #5c0d0d 100%);
+    --steel: linear-gradient(160deg, #6b2414 0%, #3d140b 50%, #230b06 100%);
+    --gold: #fbbf24;
+}
+
+/* ---------- 2. tło: żar i iskry ---------- */
+html[data-motyw="inferno"] body { background: linear-gradient(180deg, #080202 0%, #140604 55%, #2a0905 100%) fixed; }
+html[data-motyw="inferno"] .bg-glow {
+    background:
+        radial-gradient(ellipse 80% 40% at 50% 115%, rgba(249, 115, 22, 0.45), transparent 70%),
+        radial-gradient(ellipse 50% 30% at 50% 110%, rgba(220, 38, 38, 0.45), transparent 70%),
+        radial-gradient(ellipse 60% 35% at 50% -10%, rgba(220, 38, 38, 0.15), transparent 70%);
+    animation: inferno-zar 4s ease-in-out infinite alternate;
+}
+@keyframes inferno-zar { from { opacity: 0.8; } to { opacity: 1; } }
+html[data-motyw="inferno"] .bg-grid {
+    background-image:
+        radial-gradient(circle, rgba(251, 191, 36, 0.9) 0 1.2px, transparent 2px),
+        radial-gradient(circle, rgba(249, 115, 22, 0.8) 0 1px, transparent 1.8px);
+    background-size: 160px 220px, 110px 170px;
+    background-position: 0 0, 60px 90px;
+    -webkit-mask-image: linear-gradient(0deg, #000 0%, transparent 80%);
+    mask-image: linear-gradient(0deg, #000 0%, transparent 80%);
+    animation: inferno-iskry 12s linear infinite;
+}
+@keyframes inferno-iskry { to { background-position: 20px -440px, 80px -250px; } }
+
+/* ---------- 3. napisy ---------- */
+html[data-motyw="inferno"] .mega .ch > span,
+html[data-motyw="inferno"] h1 {
+    background: linear-gradient(180deg, #fff7d6 0%, #fde047 25%, #f97316 58%, #dc2626 85%, #7f1d1d 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+html[data-motyw="inferno"] .mega { filter: drop-shadow(0 8px 30px rgba(249, 115, 22, 0.45)); }
+html[data-motyw="inferno"] .plate-title { text-shadow: 0 0 16px rgba(249, 115, 22, 0.5); }
+html[data-motyw="inferno"] .kicker { color: #fbbf24; }
+
+/* ---------- 4. panele i przyciski ---------- */
+html[data-motyw="inferno"] .hud > .hud-in { background: linear-gradient(180deg, rgba(36, 14, 8, 0.95) 0%, rgba(20, 7, 4, 0.95) 100%); }
+html[data-motyw="inferno"] .hud.is-silver { filter: drop-shadow(0 0 14px rgba(249, 115, 22, 0.3)); }
+html[data-motyw="inferno"] .plate-icon { background: linear-gradient(135deg, #fbbf24, #dc2626); color: #fff; }
+html[data-motyw="inferno"] .btn-primary { background: linear-gradient(90deg, #dc2626 0%, #f97316 100%); color: #fff; box-shadow: 0 0 20px rgba(249, 115, 22, 0.35); }
+html[data-motyw="inferno"] .btn-primary:hover { background: linear-gradient(90deg, #ef4444 0%, #fb923c 100%); }
+html[data-motyw="inferno"] .stage { background: radial-gradient(ellipse at 50% 120%, rgba(249, 115, 22, 0.3), transparent 60%), #160705; }
+html[data-motyw="inferno"] .overlay { background: rgba(20, 6, 3, 0.86); }
+html[data-motyw="inferno"] ::selection { background: #f97316; color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-motyw="inferno"] .bg-glow,
+    html[data-motyw="inferno"] .bg-grid { animation: none; }
+}

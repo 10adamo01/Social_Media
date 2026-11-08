@@ -1,0 +1,98 @@
+/* =====================================================================
+   MOTYW PREMIUM: Złoty Kozak  (od rangi 👑 Legenda)
+   Czerń i złoto – mieniący się złoty napis, złote ramki z błyskiem,
+   złote cząsteczki (biorą kolor z akcentu) i ciepła winieta.
+   ===================================================================== */
+
+/* ---------- 1. kolory ---------- */
+html[data-motyw="zloty-kozak"] {
+    --bg: #090806;
+    --surface: #14110b;
+    --surface-2: #1c180f;
+    --line: #3b3220;
+    --text: #fbf6e8;
+    --muted: #d3c49d;
+    --dim: #8c7e5b;
+    --zloto: linear-gradient(115deg, #7a5410 0%, #c99a2e 14%, #fff4c9 26%, #e2b84a 38%, #9c6f17 52%, #f6dc8a 66%, #b88a27 80%, #fff1bd 92%, #8a6114 100%);
+    --silver: var(--zloto);
+    --steel: linear-gradient(160deg, #6e5420 0%, #3d2f14 50%, #221a0b 100%);
+    --gold: #f5d97a;
+}
+
+/* ---------- 2. tło: ciepła winieta i złoty pył ---------- */
+html[data-motyw="zloty-kozak"] body {
+    background:
+        radial-gradient(ellipse 120% 80% at 50% 0%, #1a150c 0%, #090806 60%) fixed;
+}
+html[data-motyw="zloty-kozak"] .bg-glow {
+    background:
+        radial-gradient(ellipse 55% 35% at 50% -6%, rgba(245, 217, 122, 0.22), transparent 70%),
+        radial-gradient(ellipse 40% 30% at 100% 100%, rgba(201, 154, 46, 0.12), transparent 70%),
+        radial-gradient(ellipse 40% 30% at 0% 100%, rgba(201, 154, 46, 0.08), transparent 70%);
+}
+html[data-motyw="zloty-kozak"] .bg-grid {
+    background-image: radial-gradient(rgba(245, 217, 122, 0.22) 1px, transparent 1.3px);
+    background-size: 30px 30px;
+}
+
+/* ---------- 3. mieniący się złoty napis ---------- */
+html[data-motyw="zloty-kozak"] .mega .ch > span {
+    background: var(--zloto);
+    background-size: 250% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: chUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards, zloto-blysk 7s linear infinite;
+    animation-delay: calc(var(--i) * 0.07s + 0.1s), 0s;
+}
+html[data-motyw="zloty-kozak"] h1 {
+    background: var(--zloto);
+    background-size: 250% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: zloto-blysk 7s linear infinite;
+}
+@keyframes zloto-blysk { from { background-position: 0% 50%; } to { background-position: 250% 50%; } }
+html[data-motyw="zloty-kozak"] .mega { filter: drop-shadow(0 8px 34px rgba(226, 184, 74, 0.35)); }
+html[data-motyw="zloty-kozak"] .plate-title,
+html[data-motyw="zloty-kozak"] .panel-title { color: #f6e3a8; text-shadow: 0 0 18px rgba(226, 184, 74, 0.35); }
+html[data-motyw="zloty-kozak"] .kicker { color: #f5d97a; }
+html[data-motyw="zloty-kozak"] .topnav-logo .dot { background: #f5d97a; box-shadow: 0 0 10px #f5d97a; }
+
+/* ---------- 4. złote ramki z przesuwającym się błyskiem ---------- */
+html[data-motyw="zloty-kozak"] .hud.is-silver {
+    background-size: 250% 100%;
+    animation: zloto-blysk 9s linear infinite;
+    filter: drop-shadow(0 0 16px rgba(226, 184, 74, 0.3));
+}
+html[data-motyw="zloty-kozak"] .hud > .hud-in {
+    background: linear-gradient(180deg, rgba(28, 24, 15, 0.96) 0%, rgba(14, 12, 8, 0.96) 100%);
+}
+html[data-motyw="zloty-kozak"] .plate-icon { background: var(--zloto); color: #2a1f08; }
+
+/* ---------- 5. przyciski: złota sztabka z błyskiem po najechaniu ---------- */
+html[data-motyw="zloty-kozak"] .btn-primary {
+    position: relative; overflow: hidden;
+    background: linear-gradient(180deg, #fbe7a1 0%, #e2b84a 45%, #b8891f 100%);
+    color: #2a1f08;
+    box-shadow: 0 0 22px rgba(226, 184, 74, 0.35);
+}
+html[data-motyw="zloty-kozak"] .btn-primary::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.6s ease;
+    pointer-events: none;
+}
+html[data-motyw="zloty-kozak"] .btn-primary:hover { background: linear-gradient(180deg, #fff1c4 0%, #ecc75e 45%, #c7972a 100%); }
+html[data-motyw="zloty-kozak"] .btn-primary:hover::after { left: 120%; }
+html[data-motyw="zloty-kozak"] .btn-ghost { box-shadow: inset 0 0 0 1px rgba(226, 184, 74, 0.4); }
+
+/* ---------- 6. drobne akcenty ---------- */
+html[data-motyw="zloty-kozak"] .stage { background: radial-gradient(ellipse at 50% 120%, rgba(226, 184, 74, 0.2), transparent 60%), #100d08; }
+html[data-motyw="zloty-kozak"] .overlay { background: rgba(14, 11, 6, 0.88); }
+html[data-motyw="zloty-kozak"] ::selection { background: #e2b84a; color: #2a1f08; }
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-motyw="zloty-kozak"] .mega .ch > span,
+    html[data-motyw="zloty-kozak"] h1,
+    html[data-motyw="zloty-kozak"] .hud.is-silver { animation: none; }
+    html[data-motyw="zloty-kozak"] .mega .ch > span { transform: none; }
+}

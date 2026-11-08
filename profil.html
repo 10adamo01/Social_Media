@@ -10,8 +10,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="gry.css?v=20261016b">
-    <script src="motyw.js?v=20261016b"></script>
+    <link rel="stylesheet" href="gry.css?v=20261102b">
+    <script src="motywy/lista.js?v=20261102b"></script>
+    <script src="motyw.js?v=20261102b"></script>
     <style>
         .panel .hud-in { padding: 22px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
 
@@ -184,6 +185,14 @@
                 <div class="stat"><dt>Seria</dt><dd id="s-streak">0</dd></div>
             </dl>
 
+            <section id="motywy" class="hud panel" aria-labelledby="theme-title" style="margin-bottom: 18px;">
+                <div class="hud-in">
+                    <h2 id="theme-title" class="panel-title">Motyw strony <small>tylko dla Ciebie</small></h2>
+                    <p class="panel-lead" style="margin:-4px 0 14px;font-size:13.5px;color:var(--muted)">Wybierz, jak ma wyglądać strona i minigierki u Ciebie. Specjalne motywy odblokowujesz wyższą rangą.</p>
+                    <div id="theme-cards"></div>
+                </div>
+            </section>
+
             <section class="hud panel" aria-labelledby="ranks-title" style="margin-bottom: 18px;">
                 <div class="hud-in">
                     <h2 id="ranks-title" class="panel-title">Rangi widzów</h2>
@@ -245,9 +254,9 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <script src="config.js?v=20261016b"></script>
-    <script src="gry-lista.js?v=20261016b"></script>
-    <script src="punkty.js?v=20261016b"></script>
+    <script src="config.js?v=20261102b"></script>
+    <script src="gry-lista.js?v=20261102b"></script>
+    <script src="punkty.js?v=20261102b"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script>
         const $ = (id) => document.getElementById(id);
@@ -417,6 +426,25 @@
             });
         }
 
+        // ---------- motyw (wybór widza) ----------
+        function renderThemes(p) {
+            const M = window.ZawloxMotyw;
+            if (!M) return;
+            const creator = p.role === 'owner';
+            const lvl = P.level(Number(p.points) || 0).level;
+            M.setLevel(lvl, creator);
+            const site = M.find(M.site());
+            const draw = () => M.cards($('theme-cards'), {
+                selected: M.mine(),
+                level: creator ? Infinity : lvl,
+                withSiteOption: true,
+                siteName: site ? site.nazwa : 'Zawlox',
+                rankName: (l) => { const r = P.rankOf(l); return r.icon + ' ' + r.name; },
+                onPick: (id) => { M.setMine(id); draw(); }
+            });
+            draw();
+        }
+
         // ---------- start ----------
         async function login() {
             const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } });
@@ -442,6 +470,7 @@
             if (error || !p) { gate('Punkty jeszcze nie działają', 'Właściciel strony musi najpierw włączyć system punktów w bazie.'); return; }
             $('gate').hidden = true; $('profile').hidden = false;
             renderCard(user, p);
+            renderThemes(p);
             renderRecords(user); renderHistory(); renderTop();
         }
 

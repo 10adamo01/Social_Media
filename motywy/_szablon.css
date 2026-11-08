@@ -1,0 +1,48 @@
+/* =====================================================================
+   SZABLON NOWEGO MOTYWU
+   1. Skopiuj ten plik jako motywy/<id>.css, np. motywy/halloween.css
+   2. Zamień wszędzie TWOJ-ID na to samo id (np. halloween)
+   3. Zmień kolory poniżej – wystarczy sekcja 1, reszta jest opcjonalna
+   4. Dopisz motyw do motywy/lista.js i wrzuć oba pliki na GitHuba
+   ===================================================================== */
+
+/* ---------- 1. KOLORY (najważniejsze – zmieniają całą stronę) ---------- */
+html[data-motyw="TWOJ-ID"] {
+    --bg: #0e0e10;          /* tło strony */
+    --surface: #18181b;     /* tło paneli */
+    --surface-2: #1f1f23;   /* tło wierszy, pól i kafelków w panelach */
+    --line: #2f2f35;        /* linie i obramowania */
+    --text: #efeff1;        /* główny tekst */
+    --muted: #adadb8;       /* tekst pomocniczy */
+    --dim: #6b6b75;         /* najmniej ważny tekst */
+    /* ramki paneli z tytułem (ścięte rogi) – może być gradient */
+    --silver: linear-gradient(160deg, #fafafa 0%, #d4d4d8 22%, #8a8a93 52%, #4a4a52 78%, #2a2a30 100%);
+    /* ramki zwykłych kafelków */
+    --steel: linear-gradient(160deg, #55555e 0%, #34343b 45%, #202026 100%);
+    /* kolor przycisków ustawiasz w lista.js (pole "akcent") */
+}
+
+/* ---------- 2. TŁO (opcjonalnie) ---------- */
+html[data-motyw="TWOJ-ID"] body {
+    background: var(--bg);
+}
+html[data-motyw="TWOJ-ID"] .bg-glow {
+    /* poświata u góry strony */
+    background: radial-gradient(ellipse 60% 40% at 50% -5%, rgba(var(--accent-rgb), 0.22), transparent 70%);
+}
+
+/* ---------- 3. WIELKI NAPIS I NAGŁÓWKI (opcjonalnie) ---------- */
+html[data-motyw="TWOJ-ID"] .mega .ch > span,
+html[data-motyw="TWOJ-ID"] h1 {
+    background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 45%, #6b6b75 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* ---------- 4. PANELE I PRZYCISKI (opcjonalnie) ---------- */
+html[data-motyw="TWOJ-ID"] .hud > .hud-in {
+    background: var(--surface);
+}
+html[data-motyw="TWOJ-ID"] .btn-primary {
+    background: var(--accent);
+    color: var(--on-accent);
+}

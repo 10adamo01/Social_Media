@@ -38,6 +38,7 @@
     </script>
     <script src="motywy/lista.js?v=20261102b"></script>
     <script src="motyw.js?v=20261102b"></script>
+    <link rel="stylesheet" href="sklep/przedmioty.css?v=20261108b">
     <style>
         /* =========================================================
            KOLORY I ZMIENNE – styl paneli z Twitcha
@@ -252,6 +253,9 @@
         .nav-user .hud-in { display: flex; align-items: center; gap: 9px; padding: 0 14px 0 7px; background: var(--surface); transition: background-color 0.2s; }
         .nav-user:hover .hud-in, .nav-user[aria-expanded="true"] .hud-in { background: var(--surface-2); }
         .nav-user img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--surface-2); flex-shrink: 0; }
+        .nav-user .zf { --zf-w: 2px; }
+        .pts-row .zf { --zf-w: 2px; }
+        .home-name .pn { overflow: hidden; text-overflow: ellipsis; }
         .nav-user img:not([src]) { visibility: hidden; }
         .nav-name {
             font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase;
@@ -1076,6 +1080,7 @@
                         <p class="nav-menu-who">Zalogowano jako<b id="nav-menu-name"></b><span id="nav-menu-lvl" class="nav-menu-lvl" hidden></span></p>
                         <a href="profil.html">Mój profil</a>
                         <a href="ranking.html">Ranking widzów</a>
+                        <a href="sklep.html">Sklepik</a>
                         <a href="profil.html#motywy">Zmień motyw</a>
                         <a href="#glosowanie" id="nav-menu-poll" hidden>Głosowanie</a>
                         <a href="minigierki.html">Minigierki i rankingi</a>
@@ -1472,7 +1477,8 @@
     <!-- Ustawienia rankingu i lista minigierek (wspólne z grami) -->
     <script src="config.js?v=20261102b"></script>
     <script src="gry-lista.js?v=20261102b"></script>
-    <script src="punkty.js?v=20261102b"></script>
+    <script src="punkty.js?v=20261108b"></script>
+    <script src="sklep/wyglad.js?v=20261108b"></script>
     <!-- Biblioteka Supabase: logowanie Discord + głosowanie -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script>
@@ -2938,7 +2944,7 @@
             const P = window.ZawloxPunkty;
             if (!P) return;
             const cfg = window.ZAWLOX_CONFIG || {};
-            let sb = null, user = null, total = null, role = null, capped = { stream: false, video: false };
+            let sb = null, user = null, total = null, role = null, balance = null, capped = { stream: false, video: false };
             let heroVisible = false, watchedSec = 0, watchKind = '', watchRef = '', ticking = false, firstAward = true;
 
             // ---------- tabelka "jak zdobywać" ----------
@@ -2971,6 +2977,21 @@
             }
             renderRanks();
 
+            // ---------- ramka avatara i kolor nicku w menu (ze sklepiku) ----------
+            function setNavLook(frameId, colorId) {
+                const W = window.ZawloxWyglad;
+                if (!W) return;
+                const img = $('nav-avatar');
+                let wrap = img.parentElement.classList.contains('zf') ? img.parentElement : null;
+                if (!wrap) { wrap = W.frame(document.createElement('span'), null); img.replaceWith(wrap); wrap.innerHTML = ''; wrap.appendChild(img); }
+                wrap.className = 'zf' + (frameId ? ' zf-' + frameId : '');
+                if (frameId === 'ramka-kozacka') wrap.setAttribute('data-zf-icon', '🐐');
+                else if (frameId === 'ramka-zlota') wrap.setAttribute('data-zf-icon', '👑');
+                else wrap.removeAttribute('data-zf-icon');
+                W.color($('nav-name'), colorId);
+                W.color($('nav-menu-name'), colorId);
+            }
+
             // ---------- licznik w menu ----------
             function showTotal(t, bump) {
                 total = t;
@@ -2994,6 +3015,8 @@
                 const before = total;
                 role = data.role || null;
                 if (window.ZawloxMotyw) window.ZawloxMotyw.setLevel(P.level(Number(data.points) || 0).level, role === 'owner');
+                balance = data.balance !== undefined ? Number(data.balance) : null;
+                setNavLook(data.frame || null, data.name_color || null);
                 showTotal(Number(data.points) || 0, before !== null && data.points > before);
                 if (announce && before !== null && data.points > before) showToast(`+${data.points - before} pkt!`);
                 loadBoard();
@@ -3018,9 +3041,11 @@
                 a.className = 'btn btn-primary'; a.href = 'profil.html';
                 a.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg> Mój profil';
                 box.appendChild(a);
+                const shop = document.createElement('a');
+                shop.className = 'btn btn-ghost'; shop.href = 'sklep.html'; shop.textContent = 'Sklepik';
                 const full = document.createElement('a');
                 full.className = 'btn btn-ghost'; full.href = 'ranking.html'; full.textContent = 'Pełny ranking';
-                box.appendChild(full);
+                box.append(shop, full);
                 if (total !== null) {
                     const lv = P.level(total);
                     const me = document.createElement('span');
@@ -3028,6 +3053,7 @@
                     me.innerHTML = role === 'owner' ? 'Masz <b></b> · <b>★ Twórca</b>' : 'Masz <b></b> · poziom <b></b>';
                     me.children[0].textContent = nf.format(total) + ' pkt';
                     if (role !== 'owner') me.children[1].textContent = lv.level;
+                    if (balance !== null && balance !== total) me.insertAdjacentHTML('beforeend', ` · do wydania <b>${nf.format(balance)} pkt</b>`);
                     box.appendChild(me);
                 }
             }
@@ -3048,8 +3074,15 @@
                     if (r.avatar_url) { av = document.createElement('img'); av.src = r.avatar_url; av.alt = ''; av.loading = 'lazy'; av.referrerPolicy = 'no-referrer'; }
                     else { av = document.createElement('span'); const m = String(r.name || '').match(/[\p{L}\p{N}]/u); av.textContent = m ? m[0].toUpperCase() : '?'; }
                     av.className = 'home-av';
+                    const W = window.ZawloxWyglad;
+                    if (W) av = W.frame(av, r.frame);
                     const name = document.createElement('span'); name.className = 'home-name';
-                    name.textContent = r.name;
+                    const pn = document.createElement(r.uid ? 'a' : 'span'); pn.className = 'pn'; pn.textContent = r.name;
+                    if (r.uid) { pn.href = 'widz.html?id=' + encodeURIComponent(r.uid); pn.title = 'Profil widza'; }
+                    if (W) W.color(pn, r.name_color);
+                    name.appendChild(pn);
+                    const md = W && W.medals(r.gold, r.silver, r.bronze);
+                    if (md) name.appendChild(md);
                     const lvl = document.createElement('span'); lvl.className = 'pts-lvl';
                     const rk = P.rankOf ? P.rankOf(P.level(r.points).level) : null;
                     lvl.textContent = rk ? `${rk.icon} ${rk.name}` : `Poziom ${P.level(r.points).level}`;
@@ -3119,7 +3152,7 @@
                 total = null; capped = { stream: false, video: false }; firstAward = true;
                 showTotal(null);
                 renderCta(); renderHeroHint();
-                if (!user) { $('nav-menu-lvl').hidden = true; if (window.ZawloxMotyw) window.ZawloxMotyw.setLevel(1, false); loadBoard(); return; }
+                if (!user) { $('nav-menu-lvl').hidden = true; balance = null; setNavLook(null, null); if (window.ZawloxMotyw) window.ZawloxMotyw.setLevel(1, false); loadBoard(); return; }
                 const { data: daily } = await sb.rpc('claim_daily');
                 if (daily > 0) showToast(`+${daily} pkt za codzienną wizytę!`);
                 await refreshTotal(false);

@@ -87,7 +87,10 @@ window.ZawloxPunkty = (function () {
         watch_video:  { label: 'Oglądanie filmu',   icon: '🎬' },
         game:         { label: 'Rozegrana gra',     icon: '🎮' },
         game_best:    { label: 'Nowy rekord',       icon: '🏆' },
-        vote:         { label: 'Głos w ankiecie',   icon: '🗳️' }
+        vote:         { label: 'Głos w ankiecie',   icon: '🗳️' },
+        quest:        { label: 'Zadanie dnia',      icon: '📜' },
+        quest_bonus:  { label: 'Skrzynka za komplet zadań', icon: '🎁' },
+        streak:       { label: 'Bonus za 7 dni z rzędu',    icon: '🔥' }
     };
 
     // jak zdobywać punkty – ta sama tabelka na stronie głównej i w profilu
@@ -97,8 +100,13 @@ window.ZawloxPunkty = (function () {
         ['🎮', 'Rozegrana minigierka', '+3 pkt', 'do 10 gier dziennie'],
         ['🏆', 'Pobity własny rekord', '+10 pkt', 'do 3 dziennie'],
         ['🗳️', 'Głos w ankiecie', '+5 pkt', 'za każdą ankietę'],
-        ['📅', 'Codzienna wizyta', '+10 pkt', 'raz dziennie']
+        ['📅', 'Codzienna wizyta', '+10–40 pkt', 'rośnie z każdym dniem serii'],
+        ['🔥', 'Co 7. dzień z rzędu', '+50 pkt', 'bonus za serię'],
+        ['📜', 'Zadania dnia', '+15 pkt', '3 dziennie, +30 za komplet']
     ];
+
+    // bonus dzienny dla N-tego dnia serii (tak samo liczy baza)
+    function dailyFor(day) { return 10 + 5 * Math.min(Math.max(day, 1) - 1, 6) + (day > 0 && day % 7 === 0 ? 50 : 0); }
 
     // dni z rzędu z aktywnością (lista dat 'YYYY-MM-DD', od najnowszej)
     function streak(days) {
@@ -112,7 +120,7 @@ window.ZawloxPunkty = (function () {
     }
 
     function badges(p) {
-        var s = streak(p.days);
+        var s = typeof p.streak === 'number' ? Math.max(p.streak, streak(p.days)) : streak(p.days);
         return [
             { icon: '👋', name: 'Pierwsze kroki',   desc: 'Zdobądź pierwsze punkty',            ok: p.points > 0 },
             { icon: '🎮', name: 'Gracz',            desc: 'Rozegraj 10 minigierek',             ok: p.games >= 10 },
@@ -125,5 +133,5 @@ window.ZawloxPunkty = (function () {
         ];
     }
 
-    return { level: level, need: need, title: title, rankOf: rankOf, RANKS: RANKS, ladder: ladder, REASONS: REASONS, RULES: RULES, streak: streak, badges: badges };
+    return { level: level, need: need, title: title, rankOf: rankOf, RANKS: RANKS, ladder: ladder, REASONS: REASONS, RULES: RULES, streak: streak, dailyFor: dailyFor, badges: badges };
 })();

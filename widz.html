@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil widza | Zawlox</title>
+    <meta name="description" content="Profil widza Zawloxa – ranga, punkty, tytuły i odznaki.">
+    <meta name="theme-color" content="#0e0e10">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 0h52v52L52 64H0V12z' fill='%230e0e10' stroke='%23d4d4d8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23a970ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gry.css?v=20261102b">
+    <link rel="stylesheet" href="sklep/przedmioty.css?v=20261108b">
+    <script src="motywy/lista.js?v=20261102b"></script>
+    <script src="motyw.js?v=20261102b"></script>
+    <style>
+        .panel .hud-in { padding: 22px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
+
+        /* ---------- karta gracza ---------- */
+        .card { --cut: 24px; margin-bottom: 18px; }
+        .card > .hud-in {
+            display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 26px;
+            padding: 28px;
+            background:
+                radial-gradient(ellipse 60% 120% at 0% 0%, rgba(var(--accent-rgb), 0.22), transparent 60%),
+                linear-gradient(180deg, #141417 0%, #0f0f12 100%);
+        }
+        .card-av { width: 112px; height: 112px; border-radius: 50%; object-fit: cover; background: var(--surface-2); box-shadow: 0 0 0 4px #0f0f12, 0 0 0 6px var(--accent); }
+        .card-av.avatar-fallback { display: grid; place-items: center; font-family: var(--font-display); font-weight: 900; font-size: 48px; color: var(--muted); }
+        .card-name { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: clamp(34px, 5vw, 52px); line-height: 1; text-transform: uppercase; overflow-wrap: anywhere; }
+        .card-title { margin: 6px 0 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .chip { padding: 4px 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(var(--accent-rgb), 0.18); color: var(--accent-2); }
+        .chip.dim { background: var(--surface-2); color: var(--muted); }
+        .chip.creator {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #1a1206; background: linear-gradient(135deg, #fff3c4 0%, #f5c542 45%, #d99a1e 100%);
+            box-shadow: 0 0 18px rgba(245, 197, 66, 0.35);
+        }
+        .card.is-creator .card-av { box-shadow: 0 0 0 4px #0f0f12, 0 0 0 6px #f5c542, 0 0 30px rgba(245, 197, 66, 0.35); }
+        .bar { position: relative; height: 12px; background: var(--surface-2); overflow: hidden; }
+        .bar span { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 1s cubic-bezier(0.16, 1, 0.3, 1); }
+        .bar-txt { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+        .bar-txt b { color: #fff; }
+        .card-pts { text-align: right; }
+        .card-pts .num { font-family: var(--font-display); font-weight: 900; font-size: clamp(48px, 7vw, 76px); line-height: 0.9; font-variant-numeric: tabular-nums; }
+        .card-pts .lbl { font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-2); }
+        .card-pts .sub2 { margin-top: 8px; font-size: 13px; color: var(--muted); }
+        .card-pts .sub2 b { color: #fff; }
+
+        /* ---------- statystyki ---------- */
+        .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+        .stat { padding: 14px 16px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+        .stat dt { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+        .stat dd { margin: 4px 0 0; font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+        .stat dd small { font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--muted); }
+
+        .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+        .col { display: grid; gap: 18px; }
+
+        /* rekordy */
+        .rec { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 12px; background: var(--surface-2); }
+        .rec + .rec { margin-top: 6px; }
+        .rec a { font-family: var(--font-display); font-weight: 800; font-size: 18px; text-transform: uppercase; }
+        .rec a:hover { color: var(--accent-2); }
+        .rec .val { font-family: var(--font-display); font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
+        .rec .pl { min-width: 54px; text-align: right; font-size: 12px; font-weight: 800; color: var(--muted); }
+        .rec .pl.top { color: var(--gold); }
+        .rec.none .val { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--dim); }
+
+        /* odznaki */
+        .badges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .badge { display: grid; justify-items: center; gap: 4px; padding: 14px 8px 12px; text-align: center; background: var(--surface-2); }
+        .badge .ico { font-size: 28px; line-height: 1; }
+        .badge b { font-size: 12.5px; }
+        .badge small { font-size: 11px; line-height: 1.35; color: var(--muted); }
+        .badge.locked { opacity: 0.45; }
+        .badge.locked .ico { filter: grayscale(1); }
+        .badge:not(.locked) { box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.55); }
+
+        /* historia */
+        .hist { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+        .hist li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; background: var(--surface-2); font-size: 14px; }
+        .hist .what { min-width: 0; }
+        .hist .what b { display: block; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hist .what small { font-size: 12px; color: var(--muted); }
+        .hist .plus { font-family: var(--font-display); font-weight: 800; font-size: 19px; color: var(--good); }
+
+        /* ranking */
+        .top-row { display: grid; grid-template-columns: 26px 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; background: var(--surface-2); }
+        .top-row + .top-row { margin-top: 6px; }
+        .top-row.is-me { box-shadow: inset 3px 0 0 var(--accent-2); }
+        .top-row:nth-child(1) .rank { color: var(--gold); }
+        .top-row:nth-child(2) .rank { color: var(--silver-medal); }
+        .top-row:nth-child(3) .rank { color: var(--bronze); }
+
+        /* zasady */
+        .rules-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+        .rules-list li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; background: var(--surface-2); font-size: 13.5px; }
+        .rules-list small { display: block; font-size: 11.5px; color: var(--dim); }
+        .rules-list b { font-family: var(--font-display); font-size: 17px; color: var(--accent-2); white-space: nowrap; }
+        .note-small { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim); }
+
+        /* konto */
+        .acc { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; font-size: 14px; }
+        .acc dt { color: var(--muted); }
+        .acc dd { margin: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+
+        .season-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+        .season-badge { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px; background: var(--surface-2); box-shadow: inset 3px 0 0 var(--mc); }
+        .season-badge.place-1 { --mc: var(--gold); } .season-badge.place-2 { --mc: var(--silver-medal); } .season-badge.place-3 { --mc: var(--bronze); }
+        .season-badge .ico { font-size: 30px; line-height: 1; }
+        .season-badge b { display: block; font-size: 14px; }
+        .season-badge small { font-size: 12px; color: var(--muted); }
+        .card .zf { --zf-w: 5px; }
+        .top-row .zf { --zf-w: 2px; }
+        .wallet-line { margin-top: 10px; font-size: 13px; color: var(--muted); }
+        .wallet-line b { color: #fff; }
+        .wallet-line a { color: var(--accent-2); font-weight: 700; }
+        .empty { padding: 14px 10px; font-size: 13px; color: var(--dim); text-align: center; background: var(--surface-2); }
+
+        /* ---------- codzienne: zadania + seria ---------- */
+        .daily { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; margin-bottom: 18px; align-items: start; }
+        .quest { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 12px; background: var(--surface-2); }
+        .quest + .quest { margin-top: 6px; }
+        .quest .qi { grid-row: span 2; font-size: 22px; text-align: center; }
+        .quest .ql { font-size: 14px; font-weight: 700; }
+        .quest .qbar { grid-column: 2; height: 6px; background: #26262c; overflow: hidden; }
+        .quest .qbar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+        .quest .qside { grid-row: 1 / span 2; grid-column: 3; display: grid; justify-items: end; gap: 2px; }
+        .quest .qp { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .quest.is-done .qbar span { background: var(--good); }
+        .quest.is-claimed { opacity: 0.6; }
+        .quest .btn { padding: 6px 10px; font-size: 13px; }
+        .chest { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding: 12px; flex-wrap: wrap;
+                 background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.18), transparent); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.45); }
+        .chest b { font-size: 14px; } .chest small { display: block; font-size: 12px; color: var(--muted); }
+        .chest .ico { font-size: 26px; margin-right: 10px; }
+        .chest.is-open { opacity: 0.6; }
+        .quest-reset { margin: 10px 0 0; font-size: 12px; color: var(--dim); }
+        .streak-track { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+        .sday { display: grid; justify-items: center; gap: 3px; padding: 10px 2px 8px; background: var(--surface-2); text-align: center; }
+        .sday small { font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+        .sday b { font-family: var(--font-display); font-weight: 900; font-size: 19px; font-variant-numeric: tabular-nums; }
+        .sday i { font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--gold); }
+        .sday.is-past { background: rgba(var(--accent-rgb), 0.22); }
+        .sday.is-past b { color: var(--accent-2); }
+        .sday.is-today { box-shadow: inset 0 0 0 2px var(--accent-2); }
+        .sday.is-big { background: linear-gradient(180deg, rgba(245, 197, 66, 0.2), var(--surface-2)); }
+        .streak-big { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
+        .streak-big b { font-family: var(--font-display); font-weight: 900; font-size: 44px; line-height: 1; }
+        .streak-big span { font-size: 13px; color: var(--muted); }
+        .streak-note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+        .streak-note b { color: #fff; }
+        .card-title .zt { font-size: 12px; padding: 4px 10px; }
+        .pub-link { margin-top: 8px; font-size: 12.5px; }
+        .pub-link a { color: var(--accent-2); font-weight: 700; }
+        .pname a:hover { text-decoration: underline; }
+        @media (max-width: 860px) { .daily { grid-template-columns: 1fr; } }
+        @media (max-width: 420px) { .sday b { font-size: 16px; } .sday small { font-size: 9.5px; } }
+
+        .gate { max-width: 560px; }
+        .gate .hud-in { display: grid; justify-items: start; gap: 14px; }
+        .gate h2 { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 30px; text-transform: uppercase; }
+        .gate p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
+
+        @media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 860px) {
+            .cols { grid-template-columns: 1fr; }
+            .card > .hud-in { grid-template-columns: auto minmax(0, 1fr); }
+            .card-pts { grid-column: 1 / -1; text-align: left; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+            .card-pts .sub2 { margin: 0; }
+        }
+        @media (max-width: 520px) {
+            .card > .hud-in { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
+            .card-av { width: 84px; height: 84px; }
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .badges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .panel .hud-in { padding: 18px; }
+        }
+    
+        .ach-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+        .ach { display: grid; gap: 6px; justify-items: start; padding: 12px; background: var(--surface-2); }
+        .ach small { font-size: 12px; line-height: 1.4; color: var(--muted); }
+        .ach.locked { opacity: 0.5; }
+        .ach.locked .zt { filter: grayscale(1); }
+        .me-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; padding: 12px 16px;
+                     background: rgba(var(--accent-rgb), 0.14); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.45); font-size: 14px; }
+        .me-banner a { color: var(--accent-2); font-weight: 700; }
+    </style>
+</head>
+<body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+        <symbol id="i-arrow-right" viewBox="0 0 448 512"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/></symbol>
+        <symbol id="i-discord" viewBox="0 0 640 512"><path d="M524.531,69.836a1.5,1.5,0,0,0-.764-.7A485.065,485.065,0,0,0,404.081,32.03a1.816,1.816,0,0,0-1.923.91,337.461,337.461,0,0,0-14.9,30.6,447.848,447.848,0,0,0-134.426,0,309.541,309.541,0,0,0-15.135-30.6,1.89,1.89,0,0,0-1.924-.91A483.689,483.689,0,0,0,116.085,69.137a1.712,1.712,0,0,0-.788.676C39.068,183.651,18.186,294.69,28.43,404.354a2.016,2.016,0,0,0,.765,1.375A487.666,487.666,0,0,0,176.02,479.918a1.9,1.9,0,0,0,2.063-.676A348.2,348.2,0,0,0,208.12,430.4a1.86,1.86,0,0,0-1.019-2.588,321.173,321.173,0,0,1-45.868-21.853,1.885,1.885,0,0,1-.185-3.126c3.082-2.309,6.166-4.711,9.109-7.137a1.819,1.819,0,0,1,1.9-.256c96.229,43.917,200.41,43.917,295.5,0a1.812,1.812,0,0,1,1.924.233c2.944,2.426,6.027,4.851,9.132,7.16a1.884,1.884,0,0,1-.162,3.126,301.407,301.407,0,0,1-45.89,21.83,1.875,1.875,0,0,0-1,2.611,391.055,391.055,0,0,0,30.014,48.815,1.864,1.864,0,0,0,2.063.7A486.048,486.048,0,0,0,610.7,405.729a1.882,1.882,0,0,0,.765-1.352C623.729,277.594,590.933,167.465,524.531,69.836ZM222.491,337.58c-28.972,0-52.844-26.587-52.844-59.239S193.056,219.1,222.491,219.1c29.665,0,53.306,26.82,52.843,59.239C275.334,310.993,251.924,337.58,222.491,337.58Zm195.38,0c-28.971,0-52.843-26.587-52.843-59.239S388.437,219.1,417.871,219.1c29.667,0,53.307,26.82,52.844,59.239C470.715,310.993,447.538,337.58,417.871,337.58Z"/></symbol>
+    </defs></svg>
+    <div class="bg-glow" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <main>
+        <div class="top">
+            <a class="back" href="./"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Wróć do Zawlox</a>
+            <a class="back" href="ranking.html"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg> Ranking widzów</a>
+        </div>
+
+        <div class="title-row">
+            <div>
+                <p class="kicker">Profil widza</p>
+                <h1 id="h-name">Widz</h1>
+            </div>
+            <p class="rules">Punkty, ranga, tytuły i odznaki zdobyte na stronie Zawloxa. <a href="ranking.html" style="color:var(--accent-2);font-weight:700">Zobacz cały ranking →</a></p>
+        </div>
+
+        <div id="gate" class="hud panel gate">
+            <div class="hud-in">
+                <h2 id="gate-title">Wczytuję profil…</h2>
+                <p id="gate-text"></p>
+                <div id="gate-actions"></div>
+            </div>
+        </div>
+
+        <div id="profile" hidden>
+            <div id="me-banner" class="me-banner" hidden><span>To Twój publiczny profil – tak widzą Cię inni.</span><span><a href="profil.html">Mój profil</a> · <a href="sklep.html">Sklepik</a></span></div>
+
+            <div class="hud is-silver card">
+                <div class="hud-in">
+                    <div id="p-av-wrap"></div>
+                    <div>
+                        <h2 id="p-name" class="card-name"></h2>
+                        <div class="card-title"><span id="p-level" class="chip"></span><span id="p-title" class="chip dim"></span></div>
+                        <div class="bar" role="progressbar" aria-label="Postęp do następnego poziomu" aria-valuemin="0" aria-valuemax="100"><span id="p-bar"></span></div>
+                        <p id="p-bar-txt" class="bar-txt"></p>
+                    </div>
+                    <div class="card-pts">
+                        <div><div id="p-points" class="num">0</div><div class="lbl">punktów</div></div>
+                        <div id="p-rank" class="sub2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <dl class="stats">
+                <div class="stat"><dt>Oglądanie</dt><dd id="s-watch">0</dd></div>
+                <div class="stat"><dt>Gry</dt><dd id="s-games">0</dd></div>
+                <div class="stat"><dt>Rekordy</dt><dd id="s-records">0</dd></div>
+                <div class="stat"><dt>Ankiety</dt><dd id="s-votes">0</dd></div>
+                <div class="stat"><dt>Aktywne dni</dt><dd id="s-days">0</dd></div>
+                <div class="stat"><dt>Seria</dt><dd id="s-streak">0</dd></div>
+            </dl>
+
+            <section class="hud panel" aria-labelledby="ach-title" style="margin-bottom: 18px;">
+                <div class="hud-in">
+                    <h2 id="ach-title" class="panel-title">Tytuły za osiągnięcia <small id="ach-count"></small></h2>
+                    <div id="achievements" class="ach-list"></div>
+                </div>
+            </section>
+
+            <div class="cols">
+                <div class="col">
+                    <section class="hud panel" aria-labelledby="rec-title">
+                        <div class="hud-in">
+                            <h2 id="rec-title" class="panel-title">Rekordy w minigierkach</h2>
+                            <div id="records"></div>
+                        </div>
+                    </section>
+                </div>
+                <div class="col">
+                    <section class="hud panel" aria-labelledby="season-title">
+                        <div class="hud-in">
+                            <h2 id="season-title" class="panel-title">Odznaki sezonów</h2>
+                            <div id="seasons"></div>
+                        </div>
+                    </section>
+                    <section class="hud panel" aria-labelledby="acc-title">
+                        <div class="hud-in">
+                            <h2 id="acc-title" class="panel-title">Na stronie</h2>
+                            <dl class="acc">
+                                <dt>Od</dt><dd id="a-joined"></dd>
+                                <dt>Ranga</dt><dd id="a-rank"></dd>
+                            </dl>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="config.js?v=20261102b"></script>
+    <script src="gry-lista.js?v=20261102b"></script>
+    <script src="punkty.js?v=20261108b"></script>
+    <script src="sklep/wyglad.js?v=20261108b"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const P = window.ZawloxPunkty, W = window.ZawloxWyglad;
+        const GRY = window.ZAWLOX_GRY || {};
+        const cfg = window.ZAWLOX_CONFIG || {};
+        const nf = new Intl.NumberFormat('pl-PL');
+        const dateFmt = new Intl.DateTimeFormat('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
+        const sb = (cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase)
+            ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey) : null;
+
+        // tytuły za osiągnięcia (pokazujemy też te jeszcze niezdobyte)
+        const ACHIEVEMENTS = [
+            ['tytul-snajper',       'Zajmij 1. miejsce w Aim Trainerze'],
+            ['tytul-blyskawica',    'Zajmij 1. miejsce w Refleksie'],
+            ['tytul-mozg',          'Zajmij 1. miejsce w Pamięci'],
+            ['tytul-krol-weza',     'Zajmij 1. miejsce w Wężu'],
+            ['tytul-mistrz-sezonu', 'Wygraj miesięczny sezon rankingu'],
+            ['tytul-niezlomny',     'Wbijaj na stronę 7 dni z rzędu']
+        ];
+
+        function initial(n) { const m = String(n || '').match(/[\p{L}\p{N}]/u); return m ? m[0].toUpperCase() : '?'; }
+        function avatar(url, name, cls) {
+            if (url) { const i = document.createElement('img'); i.className = cls; i.src = url; i.alt = ''; i.referrerPolicy = 'no-referrer'; return i; }
+            const d = document.createElement('span'); d.className = cls + ' avatar-fallback'; d.textContent = initial(name); return d;
+        }
+        function gate(title, text, el) {
+            $('profile').hidden = true; $('gate').hidden = false;
+            $('gate-title').textContent = title; $('gate-text').textContent = text || '';
+            const a = $('gate-actions'); a.innerHTML = ''; if (el) a.appendChild(el);
+        }
+        function mins(m) { return m >= 60 ? `${nf.format(Math.floor(m / 60))} h ${m % 60} <small>min</small>` : `${nf.format(m)} <small>min</small>`; }
+
+        function render(p) {
+            document.title = p.name + ' | Profil widza | Zawlox';
+            $('h-name').textContent = p.name;
+            $('me-banner').hidden = !p.is_me;
+            const wrap = $('p-av-wrap'); wrap.innerHTML = '';
+            wrap.appendChild(W.frame(avatar(p.avatar_url, p.name, 'card-av'), p.frame));
+            $('p-name').textContent = p.name; W.color($('p-name'), p.name_color);
+            W.banner(document.querySelector('.card > .hud-in'), p.banner);
+            const pts = Number(p.points) || 0, lv = P.level(pts), creator = !!p.owner, rk = P.rankOf(lv.level);
+            const ct = document.querySelector('.card-title');
+            const tt = W.title(p.title); if (tt) ct.insertBefore(tt, ct.firstChild);
+            $('p-level').textContent = 'Poziom ' + lv.level;
+            const t = $('p-title');
+            t.className = 'chip ' + (creator ? 'creator' : 'dim');
+            t.textContent = creator ? '★ Twórca' : rk.icon + ' ' + P.title(lv.level);
+            if (!creator) { t.style.color = rk.color; t.style.boxShadow = `inset 0 0 0 1px ${rk.color}`; }
+            document.querySelector('.card').classList.toggle('is-creator', creator);
+            requestAnimationFrame(() => { $('p-bar').style.width = Math.round(lv.progress * 100) + '%'; });
+            $('p-bar').parentElement.setAttribute('aria-valuenow', Math.round(lv.progress * 100));
+            $('p-bar-txt').innerHTML = `Do poziomu ${lv.level + 1}: <b>${nf.format(lv.left)} pkt</b>`;
+            $('p-points').textContent = nf.format(pts);
+            $('p-rank').innerHTML = creator ? 'Twórca kanału · poza rankingiem widzów'
+                : p.rank ? `<b>#${p.rank}</b> z ${nf.format(p.players)} widzów` : '';
+            const md = W.medals(...['gold', 'silver', 'bronze'].map((_, i) => (p.awards || []).filter(a => a.place === i + 1).length));
+            if (md) ct.appendChild(md);
+
+            $('s-watch').innerHTML = mins(Number(p.watch_min) || 0);
+            $('s-games').textContent = nf.format(p.games);
+            $('s-records').textContent = nf.format(p.records);
+            $('s-votes').textContent = nf.format(p.votes);
+            $('s-days').textContent = nf.format(p.active_days);
+            $('s-streak').innerHTML = `${p.streak} <small>${p.streak === 1 ? 'dzień' : 'dni'}</small>`;
+            $('a-joined').textContent = p.joined ? dateFmt.format(new Date(p.joined)) : '–';
+            $('a-rank').textContent = creator ? '★ Twórca' : rk.icon + ' ' + rk.name;
+
+            // osiągnięcia
+            const got = new Set(p.achievements || []);
+            const ab = $('achievements'); ab.innerHTML = '';
+            ACHIEVEMENTS.forEach(([id, how]) => {
+                const d = document.createElement('div'); d.className = 'ach' + (got.has(id) ? '' : ' locked');
+                d.appendChild(W.title(id));
+                const s = document.createElement('small'); s.textContent = (got.has(id) ? '✓ Zdobyty · ' : '🔒 ') + how; d.appendChild(s);
+                ab.appendChild(d);
+            });
+            $('ach-count').textContent = `${ACHIEVEMENTS.filter(a => got.has(a[0])).length} / ${ACHIEVEMENTS.length}`;
+
+            // rekordy
+            const rb = $('records'); rb.innerHTML = '';
+            const best = p.best || {};
+            for (const [id, g] of Object.entries(GRY)) {
+                const row = document.createElement('div');
+                const v = best[id];
+                row.className = 'rec' + (v === undefined ? ' none' : '');
+                row.innerHTML = '<a></a><span class="val"></span><span class="pl"></span>';
+                row.children[0].textContent = g.name; row.children[0].href = g.url;
+                row.children[1].textContent = v === undefined ? 'Jeszcze nie grano' : nf.format(v) + (g.unit ? ' ' + g.unit : '');
+                const ach = { aim: 'tytul-snajper', reflex: 'tytul-blyskawica', memory: 'tytul-mozg', snake: 'tytul-krol-weza' }[id];
+                if (ach && got.has(ach)) { row.children[2].textContent = '👑 był #1'; row.children[2].classList.add('top'); }
+                rb.appendChild(row);
+            }
+
+            // sezony
+            const sb2 = $('seasons'); sb2.innerHTML = '';
+            const list = Array.isArray(p.awards) ? p.awards : [];
+            if (!list.length) sb2.innerHTML = '<div class="empty">Brak odznak sezonów – jeszcze!</div>';
+            else {
+                const ul = document.createElement('ul'); ul.className = 'season-list';
+                list.forEach(a => {
+                    const li = document.createElement('li'); li.className = 'season-badge place-' + a.place;
+                    li.innerHTML = '<span class="ico"></span><span><b></b><small></small></span>';
+                    li.querySelector('.ico').textContent = ['🥇', '🥈', '🥉'][a.place - 1];
+                    li.querySelector('b').textContent = 'Sezon ' + W.seasonName(a.season);
+                    li.querySelector('small').textContent = `${a.place}. miejsce · ${nf.format(a.points)} pkt`;
+                    ul.appendChild(li);
+                });
+                sb2.appendChild(ul);
+            }
+            $('gate').hidden = true; $('profile').hidden = false;
+        }
+
+        async function load() {
+            const id = new URLSearchParams(location.search).get('id') || '';
+            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+                const a = document.createElement('a'); a.className = 'btn btn-primary'; a.href = 'ranking.html'; a.textContent = 'Przejdź do rankingu';
+                gate('Wybierz widza', 'Kliknij nick w rankingu, żeby zobaczyć czyjś profil.', a); return;
+            }
+            const { data, error } = await sb.rpc('public_profile', { p_user: id });
+            if (error) { gate('Profile jeszcze nie działają', 'Właściciel strony musi najpierw włączyć tę funkcję w bazie.'); return; }
+            if (!data) {
+                const a = document.createElement('a'); a.className = 'btn btn-primary'; a.href = 'ranking.html'; a.textContent = 'Przejdź do rankingu';
+                gate('Nie ma takiego widza', 'Ten widz nie ma jeszcze punktów albo link jest nieaktualny.', a); return;
+            }
+            render(data);
+        }
+
+        if (!sb) gate('Brak połączenia z bazą', 'Nie udało się wczytać konfiguracji strony.');
+        else sb.auth.getSession().then(load);
+    </script>
+</body>
+</html>

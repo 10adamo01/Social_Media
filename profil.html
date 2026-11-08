@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="gry.css?v=20261102b">
+    <link rel="stylesheet" href="sklep/przedmioty.css?v=20261108b">
     <script src="motywy/lista.js?v=20261102b"></script>
     <script src="motyw.js?v=20261102b"></script>
     <style>
@@ -105,7 +106,58 @@
         .acc dt { color: var(--muted); }
         .acc dd { margin: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
 
+        .season-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+        .season-badge { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px; background: var(--surface-2); box-shadow: inset 3px 0 0 var(--mc); }
+        .season-badge.place-1 { --mc: var(--gold); } .season-badge.place-2 { --mc: var(--silver-medal); } .season-badge.place-3 { --mc: var(--bronze); }
+        .season-badge .ico { font-size: 30px; line-height: 1; }
+        .season-badge b { display: block; font-size: 14px; }
+        .season-badge small { font-size: 12px; color: var(--muted); }
+        .card .zf { --zf-w: 5px; }
+        .top-row .zf { --zf-w: 2px; }
+        .wallet-line { margin-top: 10px; font-size: 13px; color: var(--muted); }
+        .wallet-line b { color: #fff; }
+        .wallet-line a { color: var(--accent-2); font-weight: 700; }
         .empty { padding: 14px 10px; font-size: 13px; color: var(--dim); text-align: center; background: var(--surface-2); }
+
+        /* ---------- codzienne: zadania + seria ---------- */
+        .daily { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; margin-bottom: 18px; align-items: start; }
+        .quest { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 12px; background: var(--surface-2); }
+        .quest + .quest { margin-top: 6px; }
+        .quest .qi { grid-row: span 2; font-size: 22px; text-align: center; }
+        .quest .ql { font-size: 14px; font-weight: 700; }
+        .quest .qbar { grid-column: 2; height: 6px; background: #26262c; overflow: hidden; }
+        .quest .qbar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+        .quest .qside { grid-row: 1 / span 2; grid-column: 3; display: grid; justify-items: end; gap: 2px; }
+        .quest .qp { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .quest.is-done .qbar span { background: var(--good); }
+        .quest.is-claimed { opacity: 0.6; }
+        .quest .btn { padding: 6px 10px; font-size: 13px; }
+        .chest { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding: 12px; flex-wrap: wrap;
+                 background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.18), transparent); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.45); }
+        .chest b { font-size: 14px; } .chest small { display: block; font-size: 12px; color: var(--muted); }
+        .chest .ico { font-size: 26px; margin-right: 10px; }
+        .chest.is-open { opacity: 0.6; }
+        .quest-reset { margin: 10px 0 0; font-size: 12px; color: var(--dim); }
+        .streak-track { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+        .sday { display: grid; justify-items: center; gap: 3px; padding: 10px 2px 8px; background: var(--surface-2); text-align: center; }
+        .sday small { font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+        .sday b { font-family: var(--font-display); font-weight: 900; font-size: 19px; font-variant-numeric: tabular-nums; }
+        .sday i { font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--gold); }
+        .sday.is-past { background: rgba(var(--accent-rgb), 0.22); }
+        .sday.is-past b { color: var(--accent-2); }
+        .sday.is-today { box-shadow: inset 0 0 0 2px var(--accent-2); }
+        .sday.is-big { background: linear-gradient(180deg, rgba(245, 197, 66, 0.2), var(--surface-2)); }
+        .streak-big { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
+        .streak-big b { font-family: var(--font-display); font-weight: 900; font-size: 44px; line-height: 1; }
+        .streak-big span { font-size: 13px; color: var(--muted); }
+        .streak-note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+        .streak-note b { color: #fff; }
+        .card-title .zt { font-size: 12px; padding: 4px 10px; }
+        .pub-link { margin-top: 8px; font-size: 12.5px; }
+        .pub-link a { color: var(--accent-2); font-weight: 700; }
+        .pname a:hover { text-decoration: underline; }
+        @media (max-width: 860px) { .daily { grid-template-columns: 1fr; } }
+        @media (max-width: 420px) { .sday b { font-size: 16px; } .sday small { font-size: 9.5px; } }
 
         .gate { max-width: 560px; }
         .gate .hud-in { display: grid; justify-items: start; gap: 14px; }
@@ -185,6 +237,22 @@
                 <div class="stat"><dt>Seria</dt><dd id="s-streak">0</dd></div>
             </dl>
 
+            <div class="daily">
+                <section id="zadania" class="hud panel" aria-labelledby="quest-title">
+                    <div class="hud-in">
+                        <h2 id="quest-title" class="panel-title">Zadania dnia <small>+15 pkt za każde</small></h2>
+                        <div id="quests"></div>
+                        <p class="quest-reset">Nowe zadania codziennie o północy. Każdy widz dostaje inny zestaw.</p>
+                    </div>
+                </section>
+                <section id="seria" class="hud panel" aria-labelledby="streak-title">
+                    <div class="hud-in">
+                        <h2 id="streak-title" class="panel-title">Seria wizyt</h2>
+                        <div id="streak"></div>
+                    </div>
+                </section>
+            </div>
+
             <section id="motywy" class="hud panel" aria-labelledby="theme-title" style="margin-bottom: 18px;">
                 <div class="hud-in">
                     <h2 id="theme-title" class="panel-title">Motyw strony <small>tylko dla Ciebie</small></h2>
@@ -206,6 +274,12 @@
                         <div class="hud-in">
                             <h2 id="rec-title" class="panel-title">Rekordy w minigierkach</h2>
                             <div id="records"></div>
+                        </div>
+                    </section>
+                    <section class="hud panel" aria-labelledby="season-title">
+                        <div class="hud-in">
+                            <h2 id="season-title" class="panel-title">Odznaki sezonów</h2>
+                            <div id="seasons"></div>
                         </div>
                     </section>
                     <section class="hud panel" aria-labelledby="badge-title">
@@ -256,11 +330,13 @@
 
     <script src="config.js?v=20261102b"></script>
     <script src="gry-lista.js?v=20261102b"></script>
-    <script src="punkty.js?v=20261102b"></script>
+    <script src="punkty.js?v=20261108b"></script>
+    <script src="sklep/wyglad.js?v=20261108b"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script>
         const $ = (id) => document.getElementById(id);
         const P = window.ZawloxPunkty;
+        const W = window.ZawloxWyglad;
         const GRY = window.ZAWLOX_GRY || {};
         const cfg = window.ZAWLOX_CONFIG || {};
         const nf = new Intl.NumberFormat('pl-PL');
@@ -295,8 +371,10 @@
             const name = displayName(user);
             const meta = user.user_metadata || {};
             const wrap = $('p-av-wrap'); wrap.innerHTML = '';
-            wrap.appendChild(avatar(meta.avatar_url, name, 'card-av'));
+            wrap.appendChild(W.frame(avatar(meta.avatar_url, name, 'card-av'), p.frame));
             $('p-name').textContent = name;
+            W.color($('p-name'), p.name_color);
+            W.banner(document.querySelector('.card > .hud-in'), p.banner);
             const lv = P.level(p.points);
             const creator = p.role === 'owner';
             $('p-level').textContent = 'Poziom ' + lv.level;
@@ -306,6 +384,9 @@
             if (!creator) { const rc = P.rankOf(lv.level).color; t.style.color = rc; t.style.boxShadow = `inset 0 0 0 1px ${rc}`; }
             P.ladder($('ladder'), Number(p.points) || 0);
             $('p-extra').hidden = p.role !== 'admin';
+            const ct = document.querySelector('.card-title');
+            ct.querySelectorAll('.zt').forEach(x => x.remove());
+            const tt = W.title(p.title); if (tt) ct.insertBefore(tt, ct.firstChild);
             document.querySelector('.card').classList.toggle('is-creator', creator);
             requestAnimationFrame(() => { $('p-bar').style.width = Math.round(lv.progress * 100) + '%'; });
             $('p-bar').parentElement.setAttribute('aria-valuenow', Math.round(lv.progress * 100));
@@ -313,13 +394,19 @@
             $('p-points').textContent = nf.format(p.points);
             $('p-rank').innerHTML = creator ? 'Twórca kanału · poza rankingiem widzów'
                 : p.rank ? `<b>#${p.rank}</b> z ${nf.format(p.players)} widzów` : 'Zdobądź pierwsze punkty, żeby trafić do rankingu';
+            if (p.balance !== undefined) {
+                $('p-rank').insertAdjacentHTML('afterend', `<div class="wallet-line">Do wydania: <b>${nf.format(Number(p.balance) || 0)} pkt</b> · <a href="sklep.html">Sklepik →</a></div>`);
+            }
+            if (p.uid) {
+                $('p-rank').parentElement.insertAdjacentHTML('beforeend', `<div class="pub-link"><a href="widz.html?id=${encodeURIComponent(p.uid)}">Zobacz, jak widzą Cię inni →</a></div>`);
+            }
 
             $('s-today').textContent = '+' + nf.format(p.today);
             $('s-stream').innerHTML = `${nf.format(p.stream_min)} <small>min</small>`;
             $('s-video').innerHTML = `${nf.format(p.video_min)} <small>min</small>`;
             $('s-games').textContent = nf.format(p.games);
             $('s-votes').textContent = nf.format(p.votes);
-            const st = P.streak(p.days);
+            const st = typeof p.streak === 'number' ? p.streak : P.streak(p.days);
             $('s-streak').innerHTML = `${st} <small>${st === 1 ? 'dzień' : 'dni'}</small>`;
 
             $('a-discord').textContent = meta.full_name || meta.name || name;
@@ -406,9 +493,13 @@
                 const row = document.createElement('div');
                 row.className = 'top-row' + (r.is_me ? ' is-me' : '');
                 const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = i + 1;
-                const name = document.createElement('span'); name.className = 'pname'; name.textContent = r.name;
+                const name = document.createElement('span'); name.className = 'pname';
+                const pn = document.createElement(r.uid ? 'a' : 'span'); pn.textContent = r.name; W.color(pn, r.name_color);
+                if (r.uid) pn.href = 'widz.html?id=' + encodeURIComponent(r.uid);
+                name.appendChild(pn);
+                const md = W.medals(r.gold, r.silver, r.bronze); if (md) name.appendChild(md);
                 const pts = document.createElement('span'); pts.className = 'pscore'; pts.textContent = nf.format(r.points);
-                row.append(rank, avatar(r.avatar_url, r.name, 'avatar'), name, pts);
+                row.append(rank, W.frame(avatar(r.avatar_url, r.name, 'avatar'), r.frame), name, pts);
                 box.appendChild(row);
             });
         }
@@ -424,6 +515,113 @@
                 li.children[2].textContent = pts;
                 ul.appendChild(li);
             });
+        }
+
+        // ---------- toast ----------
+        let toastTimer;
+        function toast(msg, isError) {
+            const t = $('toast'); t.textContent = msg; t.classList.toggle('error', !!isError); t.classList.add('show');
+            clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+        }
+
+        // ---------- zadania dnia ----------
+        const QICON = { watch15: '📺', video10: '🎬', games3: '🎮', aim2: '🎯', reflex2: '⚡', memory2: '🧠', snake2: '🐍', record1: '🏆' };
+        const QLINK = { aim2: 'gra.html', reflex2: 'refleks.html', memory2: 'pamiec.html', snake2: 'snake.html', games3: 'minigierki.html', record1: 'minigierki.html', watch15: './#teraz', video10: './#latest' };
+        let questBusy = false;
+        async function loadQuests() {
+            const { data, error } = await sb.rpc('daily_quests');
+            if (error || !data) { $('zadania').hidden = true; return; }
+            renderQuests(data);
+        }
+        async function claim(fn, args) {
+            if (questBusy) return; questBusy = true;
+            const { data, error } = await sb.rpc(fn, args || {});
+            questBusy = false;
+            if (error) { toast('Nie udało się odebrać nagrody', true); return loadQuests(); }
+            toast(fn === 'claim_quest' ? '+15 pkt za zadanie!' : '🎁 +30 pkt ze skrzynki!');
+            renderQuests(data);
+            refreshPoints();
+        }
+        function renderQuests(q) {
+            const box = $('quests'); box.innerHTML = '';
+            for (const x of q.quests || []) {
+                const row = document.createElement('div');
+                row.className = 'quest' + (x.done ? ' is-done' : '') + (x.claimed ? ' is-claimed' : '');
+                row.innerHTML = '<span class="qi" aria-hidden="true"></span><a class="ql"></a><span class="qside"></span><span class="qbar"><span></span></span>';
+                row.querySelector('.qi').textContent = x.claimed ? '✅' : (QICON[x.id] || '📜');
+                const l = row.querySelector('.ql'); l.textContent = x.label; if (QLINK[x.id] && !x.done) l.href = QLINK[x.id];
+                row.querySelector('.qbar span').style.width = Math.round(100 * Math.min(x.progress, x.goal) / x.goal) + '%';
+                const side = row.querySelector('.qside');
+                if (x.claimed) side.innerHTML = '<span class="qp">odebrane</span>';
+                else if (x.done) {
+                    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-primary'; b.textContent = 'Odbierz +15';
+                    b.addEventListener('click', () => claim('claim_quest', { p_idx: x.idx })); side.appendChild(b);
+                } else side.innerHTML = `<span class="qp">${x.progress} / ${x.goal}</span><span class="qp">+15 pkt</span>`;
+                box.appendChild(row);
+            }
+            const claimed = (q.quests || []).filter(x => x.claimed).length;
+            const chest = document.createElement('div');
+            chest.className = 'chest' + (q.bonus_claimed ? ' is-open' : '');
+            chest.innerHTML = '<span style="display:flex;align-items:center"><span class="ico" aria-hidden="true"></span><span><b></b><small></small></span></span>';
+            chest.querySelector('.ico').textContent = q.bonus_claimed ? '📭' : '🎁';
+            chest.querySelector('b').textContent = q.bonus_claimed ? 'Skrzynka otwarta' : 'Skrzynka za komplet: +30 pkt';
+            chest.querySelector('small').textContent = q.bonus_claimed ? 'Wróć jutro po nowe zadania' : `Odebrane zadania: ${claimed} / 3`;
+            if (!q.bonus_claimed && claimed >= 3) {
+                const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-primary'; b.textContent = 'Otwórz';
+                b.addEventListener('click', () => claim('claim_quest_bonus')); chest.appendChild(b);
+            }
+            box.appendChild(chest);
+        }
+        async function refreshPoints() {
+            const { data } = await sb.rpc('my_profile');
+            if (data) { $('p-points').textContent = nf.format(data.points); $('s-today').textContent = '+' + nf.format(data.today);
+                        const wl = document.querySelector('.wallet-line b'); if (wl) wl.textContent = nf.format(Number(data.balance) || 0) + ' pkt'; }
+        }
+
+        // ---------- seria wizyt ----------
+        function renderStreak(p) {
+            const box = $('streak'); box.innerHTML = '';
+            const s = Math.max(0, Number(p.streak) || 0);              // dziś jest już odebrane (claim_daily wyżej)
+            const pos = s === 0 ? 0 : ((s - 1) % 7) + 1;              // który dzień w bieżącym tygodniu serii
+            const big = document.createElement('div'); big.className = 'streak-big';
+            big.innerHTML = '<b></b><span></span>';
+            big.querySelector('b').textContent = '🔥 ' + s;
+            big.querySelector('span').textContent = s === 1 ? 'dzień z rzędu' : 'dni z rzędu';
+            const track = document.createElement('div'); track.className = 'streak-track';
+            for (let i = 1; i <= 7; i++) {
+                const d = document.createElement('div');
+                d.className = 'sday' + (i <= pos ? ' is-past' : '') + (i === pos ? ' is-today' : '') + (i === 7 ? ' is-big' : '');
+                d.innerHTML = '<small></small><b></b>' + (i === 7 ? '<i>+50</i>' : '');
+                d.querySelector('small').textContent = 'Dzień ' + i;
+                d.querySelector('b').textContent = '+' + (10 + 5 * (i - 1));
+                track.appendChild(d);
+            }
+            const note = document.createElement('p'); note.className = 'streak-note';
+            const next = P.dailyFor(s + 1);
+            note.innerHTML = `Jutro za wizytę: <b>+${next} pkt</b>. Opuścisz dzień – seria startuje od nowa.`
+                + (Array.isArray(p.owned) && p.owned.includes('tytul-niezlomny') ? '' : ' Pełne 7 dni = tytuł <b>🔥 Niezłomny</b>.');
+            box.append(big, track, note);
+        }
+
+        // ---------- odznaki sezonów (top 3 miesiąca) ----------
+        function renderSeasons(p) {
+            const box = $('seasons'); box.innerHTML = '';
+            const list = Array.isArray(p.awards) ? p.awards : [];
+            if (!list.length) {
+                box.innerHTML = '<div class="empty">Brak odznak – skończ miesiąc w top 3 rankingu widzów, a dostaniesz stałą odznakę 🥇🥈🥉. <a href="ranking.html#month-all" style="color:var(--accent-2);font-weight:700">Ranking sezonu →</a></div>';
+                return;
+            }
+            const ul = document.createElement('ul'); ul.className = 'season-list';
+            list.forEach(a => {
+                const li = document.createElement('li');
+                li.className = 'season-badge place-' + a.place;
+                li.innerHTML = '<span class="ico"></span><span><b></b><small></small></span>';
+                li.querySelector('.ico').textContent = ['🥇', '🥈', '🥉'][a.place - 1];
+                li.querySelector('b').textContent = 'Sezon ' + W.seasonName(a.season);
+                li.querySelector('small').textContent = `${a.place}. miejsce · ${nf.format(a.points)} pkt`;
+                ul.appendChild(li);
+            });
+            box.appendChild(ul);
         }
 
         // ---------- motyw (wybór widza) ----------
@@ -465,13 +663,16 @@
                 gate('Zaloguj się', 'Profil, punkty i odznaki są dostępne po zalogowaniu przez Discord.', b);
                 return;
             }
-            await sb.rpc('claim_daily');
+            const { data: daily } = await sb.rpc('claim_daily');
+            if (daily > 0) toast(`+${daily} pkt za codzienną wizytę!`);
             const { data: p, error } = await sb.rpc('my_profile');
             if (error || !p) { gate('Punkty jeszcze nie działają', 'Właściciel strony musi najpierw włączyć system punktów w bazie.'); return; }
             $('gate').hidden = true; $('profile').hidden = false;
             renderCard(user, p);
             renderThemes(p);
-            renderRecords(user); renderHistory(); renderTop();
+            renderSeasons(p);
+            renderStreak(p);
+            renderRecords(user); renderHistory(); renderTop(); loadQuests();
         }
 
         if (!sb) gate('Brak połączenia z bazą', 'Nie udało się wczytać konfiguracji strony.');

@@ -14,10 +14,37 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="gry.css?v=20261102b">
+    <link rel="stylesheet" href="sklep/przedmioty.css?v=20261108b">
     <script src="motywy/lista.js?v=20261102b"></script>
     <script src="motyw.js?v=20261102b"></script>
     <style>
         .ranks { margin-bottom: 18px; }
+        .season-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 18px; padding: 14px 18px; background: linear-gradient(90deg, rgba(245, 197, 66, 0.16), rgba(var(--accent-rgb), 0.10)); box-shadow: inset 3px 0 0 var(--gold); }
+        .season-banner[hidden] { display: none; }
+        .sb-ico { font-size: 26px; }
+        .season-banner b { font-family: var(--font-display); font-size: 22px; text-transform: uppercase; }
+        #season-left { font-size: 14px; color: var(--muted); }
+        .sb-prizes { margin-left: auto; font-size: 13px; color: var(--muted); }
+        .sb-prizes b { font-size: 15px; font-family: inherit; letter-spacing: 0.1em; }
+        .tr .zf, .hall-row .zf { --zf-w: 2px; }
+        .pod .zf { --zf-w: 4px; }
+        .pod .zw-medale { margin: -2px 0 0; font-size: 14px; }
+        .who .pn { white-space: nowrap; }
+        a.tr { color: inherit; text-decoration: none; cursor: pointer; transition: background 0.15s; }
+        a.tr:hover { background: var(--surface-2); }
+        a.nm:hover, a.hall-nick:hover { text-decoration: underline; }
+        .pod .zt { margin-top: 2px; }
+        .hall { margin-top: 18px; }
+        .hall .hud-in { padding: 20px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
+        .hall-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+        .hall-season { padding: 12px; background: var(--surface-2); }
+        .hall-name { margin: 0 0 8px; font-family: var(--font-display); font-weight: 900; font-size: 20px; text-transform: uppercase; color: var(--gold); }
+        .hall-row { display: grid; grid-template-columns: 24px 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 0; }
+        .hall-row + .hall-row { border-top: 1px solid var(--line); }
+        .hall-row .avatar { width: 32px; height: 32px; }
+        .hall-nick { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hall-pts { font-family: var(--font-display); font-weight: 800; font-size: 18px; }
+        .hall-medal { font-size: 18px; }
         .ranks .hud-in { padding: 20px; background: linear-gradient(180deg, #141417 0%, #0f0f12 100%); }
         .filters { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
         .seg { display: inline-flex; padding: 4px; gap: 4px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
@@ -127,6 +154,12 @@
             </div>
         </section>
 
+        <div id="season" class="season-banner" hidden>
+            <span class="sb-ico" aria-hidden="true">🏆</span>
+            <div><b id="season-name"></b><span id="season-left"></span></div>
+            <span class="sb-prizes">Top 3 na koniec miesiąca dostaje stałe odznaki <b>🥇 🥈 🥉</b></span>
+        </div>
+
         <div id="podium" class="podium" aria-label="Podium"></div>
 
         <section class="hud panel list" aria-label="Pełny ranking">
@@ -137,14 +170,22 @@
                 <p class="foot">Twórca kanału nie bierze udziału w rankingu. Ranking odświeża się co minutę.</p>
             </div>
         </section>
+        <section id="hall" class="hud panel hall" aria-labelledby="hall-title" hidden>
+            <div class="hud-in">
+                <h2 id="hall-title" class="panel-title">Galeria zwycięzców sezonów</h2>
+                <div id="hall-list" class="hall-list"></div>
+            </div>
+        </section>
     </main>
 
     <script src="config.js?v=20261102b"></script>
-    <script src="punkty.js?v=20261102b"></script>
+    <script src="punkty.js?v=20261108b"></script>
+    <script src="sklep/wyglad.js?v=20261108b"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <script>
         const $ = (id) => document.getElementById(id);
         const P = window.ZawloxPunkty;
+        const W = window.ZawloxWyglad;
         const cfg = window.ZAWLOX_CONFIG || {};
         const nf = new Intl.NumberFormat('pl-PL');
         const sb = (cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase)
@@ -186,23 +227,34 @@
                 const inner = document.createElement('div'); inner.className = 'hud-in';
                 if (!r) { inner.textContent = 'Wolne miejsce'; card.appendChild(inner); box.appendChild(card); continue; }
                 const medal = document.createElement('span'); medal.className = 'medal'; medal.textContent = ['🥇', '🥈', '🥉'][i];
-                const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name;
+                const nm = document.createElement(r.uid ? 'a' : 'span'); nm.className = 'nm'; nm.textContent = r.name; W.color(nm, r.name_color);
+                if (r.uid) nm.href = profileUrl(r.uid);
+                const pt = W.title(r.title, true);
+                const pm = W.medals(r.gold, r.silver, r.bronze);
                 const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = nf.format(r.points);
                 const lv = document.createElement('span'); lv.className = 'lv';
                 lv.textContent = 'punktów';
-                inner.append(medal, avatar(r.avatar_url, r.name, 'av'), nm, pts, lv);
+                inner.append(medal, W.frame(avatar(r.avatar_url, r.name, 'av'), r.frame), nm);
+                if (pt) inner.appendChild(pt);
+                if (pm) inner.appendChild(pm);
+                inner.append(pts, lv);
                 card.appendChild(inner); box.appendChild(card);
             }
         }
 
+        const profileUrl = (uid) => 'widz.html?id=' + encodeURIComponent(uid);
         function row(r) {
-            const d = document.createElement('div');
+            const d = document.createElement(r.uid ? 'a' : 'div');
             d.className = 'tr' + (r.is_me ? ' is-me' : '');
+            if (r.uid) { d.href = profileUrl(r.uid); d.title = 'Zobacz profil: ' + r.name; }
             const pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = r.pos;
             if (r.pos <= 3) pos.style.color = ['var(--gold)', 'var(--silver-medal)', 'var(--bronze)'][r.pos - 1];
             const who = document.createElement('span'); who.className = 'who';
-            who.innerHTML = '<b></b><small></small>';
-            who.children[0].textContent = r.name + (r.is_me ? ' (Ty)' : '');
+            who.innerHTML = '<b><span class="pn"></span></b><small></small>';
+            const pn = who.querySelector('.pn'); pn.textContent = r.name; W.color(pn, r.name_color);
+            const md = W.medals(r.gold, r.silver, r.bronze); if (md) who.children[0].appendChild(md);
+            if (r.is_me) who.children[0].insertAdjacentText('beforeend', ' (Ty)');
+            const tt = W.title(r.title, true); if (tt) { tt.style.marginLeft = '8px'; who.children[0].appendChild(tt); }
             const parts = [];
             if (Number(r.minutes)) parts.push(mins(Number(r.minutes)) + ' oglądania');
             if (Number(r.games)) parts.push(nf.format(r.games) + (Number(r.games) === 1 ? ' gra' : ' gier'));
@@ -211,7 +263,7 @@
             const g = document.createElement('span'); g.className = 'num'; g.textContent = nf.format(r.games);
             const days = document.createElement('span'); days.className = 'num'; days.textContent = nf.format(r.active_days);
             const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = nf.format(r.points);
-            d.append(pos, avatar(r.avatar_url, r.name, 'avatar'), who, w, g, days, pts);
+            d.append(pos, W.frame(avatar(r.avatar_url, r.name, 'avatar'), r.frame), who, w, g, days, pts);
             return d;
         }
 
@@ -222,7 +274,44 @@
             P.ladder($('ladder'), pts);
         }
 
+        // ---------- sezon (miesiąc) i galeria zwycięzców ----------
+        function renderSeason() {
+            const box = $('season');
+            box.hidden = false;
+            const now = new Date();
+            const key = now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Warsaw' }).slice(0, 7);
+            const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            const days = Math.max(0, Math.ceil((end - now) / 86400000));
+            $('season-name').textContent = 'Sezon ' + W.seasonName(key);
+            $('season-left').textContent = days <= 1 ? ' · kończy się dziś o północy' : ` · kończy się za ${days} dni`;
+        }
+        async function loadHall() {
+            const { data, error } = await sb.rpc('season_winners', { p_limit: 6 });
+            const sec = $('hall');
+            if (error || !data || !data.length) { sec.hidden = true; return; }
+            const list = $('hall-list'); list.innerHTML = '';
+            const bySeason = {};
+            data.forEach(r => { (bySeason[r.season] = bySeason[r.season] || []).push(r); });
+            Object.keys(bySeason).sort().reverse().forEach(season => {
+                const card = document.createElement('div'); card.className = 'hall-season';
+                const h = document.createElement('p'); h.className = 'hall-name'; h.textContent = W.seasonName(season);
+                card.appendChild(h);
+                bySeason[season].forEach(r => {
+                    const row = document.createElement('div'); row.className = 'hall-row';
+                    const m = document.createElement('span'); m.className = 'hall-medal'; m.textContent = ['🥇', '🥈', '🥉'][r.place - 1];
+                    const nm = document.createElement(r.uid ? 'a' : 'span'); nm.className = 'hall-nick'; nm.textContent = r.name; W.color(nm, r.name_color);
+                    if (r.uid) nm.href = profileUrl(r.uid);
+                    const pt = document.createElement('span'); pt.className = 'hall-pts'; pt.textContent = nf.format(r.points);
+                    row.append(m, W.frame(avatar(r.avatar_url, r.name, 'avatar'), r.frame), nm, pt);
+                    card.appendChild(row);
+                });
+                list.appendChild(card);
+            });
+            sec.hidden = false;
+        }
+
         async function load() {
+            renderSeason();
             const my = ++loading;
             const { data, error } = await sb.rpc('points_ranking', { p_period: state.period, p_category: state.category, p_limit: 50 });
             if (my !== loading) return;                         // przyszła odpowiedź na starszy wybór
@@ -264,7 +353,7 @@
         if (!sb) { $('rows').innerHTML = '<div class="empty">Brak połączenia z bazą.</div>'; }
         else {
             P.ladder($('ladder'), null);
-            sb.auth.getSession().then(({ data }) => { user = data.session ? data.session.user : null; load(); loadLadder(); });
+            sb.auth.getSession().then(({ data }) => { user = data.session ? data.session.user : null; load(); loadLadder(); loadHall(); });
             sb.auth.onAuthStateChange((_e, session) => { const u = session ? session.user : null; if ((u && u.id) !== (user && user.id)) { user = u; load(); loadLadder(); } });
             setInterval(() => { if (!document.hidden) load(); }, 60000);
         }

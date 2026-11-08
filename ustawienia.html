@@ -576,7 +576,7 @@
             sb.auth.getSession().then(({ data }) => { lastId = data.session && data.session.user.id; start(data.session); });
             sb.auth.onAuthStateChange((_e, session) => {
                 const id = session && session.user.id;
-                if (id !== lastId) { lastId = id; start(session); }
+                if (id !== lastId) { lastId = id; setTimeout(() => start(session), 0); }
             });
         }
     </script>

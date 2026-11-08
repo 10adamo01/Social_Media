@@ -354,7 +354,7 @@
         else {
             P.ladder($('ladder'), null);
             sb.auth.getSession().then(({ data }) => { user = data.session ? data.session.user : null; load(); loadLadder(); loadHall(); });
-            sb.auth.onAuthStateChange((_e, session) => { const u = session ? session.user : null; if ((u && u.id) !== (user && user.id)) { user = u; load(); loadLadder(); } });
+            sb.auth.onAuthStateChange((_e, session) => { const u = session ? session.user : null; if ((u && u.id) !== (user && user.id)) { user = u; setTimeout(() => { load(); loadLadder(); }, 0); } });
             setInterval(() => { if (!document.hidden) load(); }, 60000);
         }
     </script>

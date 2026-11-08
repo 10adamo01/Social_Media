@@ -328,7 +328,7 @@
         if (!sb) gate('Brak połączenia z bazą', 'Nie udało się wczytać konfiguracji strony.');
         else {
             sb.auth.getSession().then(({ data }) => start(data.session));
-            sb.auth.onAuthStateChange((_e, session) => start(session));
+            sb.auth.onAuthStateChange((_e, session) => { setTimeout(() => start(session), 0); });   // setTimeout: wywołania bazy w tym miejscu blokują logowanie
         }
     </script>
 </body>

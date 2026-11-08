@@ -348,7 +348,7 @@
         sb.auth.onAuthStateChange((_e, session) => {
             const was = user && user.id;
             user = session ? session.user : null;
-            if ((user && user.id) !== was) { renderAccount(); loadMyBest(); loadBoard(); }
+            if ((user && user.id) !== was) { renderAccount(); setTimeout(() => { loadMyBest(); loadBoard(); }, 0); }
         });
     }
 

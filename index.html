@@ -2924,8 +2924,10 @@
                     const was = user && user.id;
                     user = session ? session.user : null;
                     renderNavAuth();
-                    if ((user && user.id) !== was) document.dispatchEvent(new CustomEvent('zawlox-auth', { detail: { user } }));
-                    if ((user && user.id) !== was) { await checkAdmin(); await loadPolls(); }
+                    if ((user && user.id) !== was) setTimeout(async () => {
+                        document.dispatchEvent(new CustomEvent('zawlox-auth', { detail: { user } }));
+                        await checkAdmin(); await loadPolls();
+                    }, 0);
                 });
                 // wyniki odświeżają się same, gdy sekcja jest na ekranie
                 setInterval(() => {

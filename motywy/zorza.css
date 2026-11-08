@@ -44,7 +44,7 @@ html[data-motyw="zorza"] .bg-grid {
 
 /* ---------- 3. napisy ---------- */
 html[data-motyw="zorza"] .mega .ch > span,
-html[data-motyw="zorza"] h1 {
+html[data-motyw="zorza"] h1:not(.mega) {
     background: linear-gradient(180deg, #ffffff 0%, #ccfbf1 35%, #5eead4 65%, #818cf8 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }

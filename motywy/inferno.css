@@ -41,7 +41,7 @@ html[data-motyw="inferno"] .bg-grid {
 
 /* ---------- 3. napisy ---------- */
 html[data-motyw="inferno"] .mega .ch > span,
-html[data-motyw="inferno"] h1 {
+html[data-motyw="inferno"] h1:not(.mega) {
     background: linear-gradient(180deg, #fff7d6 0%, #fde047 25%, #f97316 58%, #dc2626 85%, #7f1d1d 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }

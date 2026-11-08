@@ -57,7 +57,7 @@ html[data-motyw="gta6"] .bg-grid {
 
 /* ---------- 3. napisy ---------- */
 html[data-motyw="gta6"] .mega .ch > span,
-html[data-motyw="gta6"] h1 {
+html[data-motyw="gta6"] h1:not(.mega) {
     background: var(--sunset-text);
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }

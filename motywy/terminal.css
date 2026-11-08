@@ -34,7 +34,7 @@ html[data-motyw="terminal"] .bg-grid {
 
 /* ---------- 3. napisy ---------- */
 html[data-motyw="terminal"] .mega .ch > span,
-html[data-motyw="terminal"] h1 {
+html[data-motyw="terminal"] h1:not(.mega) {
     background: linear-gradient(180deg, #ecfff1 0%, #86efac 40%, #22c55e 75%, #15803d 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }

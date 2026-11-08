@@ -33,7 +33,7 @@ html[data-motyw="TWOJ-ID"] .bg-glow {
 
 /* ---------- 3. WIELKI NAPIS I NAGŁÓWKI (opcjonalnie) ---------- */
 html[data-motyw="TWOJ-ID"] .mega .ch > span,
-html[data-motyw="TWOJ-ID"] h1 {
+html[data-motyw="TWOJ-ID"] h1:not(.mega) {
     background: linear-gradient(180deg, #ffffff 0%, #d4d4d8 45%, #6b6b75 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }

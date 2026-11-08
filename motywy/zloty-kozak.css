@@ -43,7 +43,7 @@ html[data-motyw="zloty-kozak"] .mega .ch > span {
     animation: chUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards, zloto-blysk 7s linear infinite;
     animation-delay: calc(var(--i) * 0.07s + 0.1s), 0s;
 }
-html[data-motyw="zloty-kozak"] h1 {
+html[data-motyw="zloty-kozak"] h1:not(.mega) {
     background: var(--zloto);
     background-size: 250% 100%;
     -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -92,7 +92,7 @@ html[data-motyw="zloty-kozak"] ::selection { background: #e2b84a; color: #2a1f08
 
 @media (prefers-reduced-motion: reduce) {
     html[data-motyw="zloty-kozak"] .mega .ch > span,
-    html[data-motyw="zloty-kozak"] h1,
+    html[data-motyw="zloty-kozak"] h1:not(.mega),
     html[data-motyw="zloty-kozak"] .hud.is-silver { animation: none; }
     html[data-motyw="zloty-kozak"] .mega .ch > span { transform: none; }
 }
